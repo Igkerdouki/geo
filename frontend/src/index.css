@@ -1,0 +1,10 @@
+/* Base reset. App.css owns the theme and layout. */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  width: 100%;
+  text-align: left;
+}
