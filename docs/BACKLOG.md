@@ -1,4 +1,4 @@
-# GeoSync Sprint Backlog
+# Geo Sprint Backlog
 
 **Team:** Runtime Terror (5 developers)
 **Duration:** 8 weeks
@@ -9,7 +9,7 @@
 ## WEEK 1: Setup & Data Pipeline
 
 ### Feature 1.1: Project Infrastructure
-- [ ] Create GitLab repo (geosync)
+- [ ] Create GitLab repo (geo)
 - [ ] Set up branch protection rules
 - [ ] Create development branches for each dev
 - [ ] Write initial README with setup instructions

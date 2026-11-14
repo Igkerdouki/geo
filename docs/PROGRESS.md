@@ -1,4 +1,4 @@
-# GeoSync Project Progress
+# Geo Project Progress
 
 ## Data Downloads
 
@@ -28,7 +28,7 @@ Source: https://files.cdpr.ca.gov/pub/outgoing/pur_archives/
 ### PostgreSQL
 - [x] Installed via Homebrew (postgresql@15)
 - [x] Service started
-- [x] Database created: `geosync`
+- [x] Database created: `geo`
 - [ ] PostGIS extension - Installing...
 - [ ] Tables created - Not done
 - [ ] PUR data loaded - Not done
@@ -46,9 +46,9 @@ Source: https://files.cdpr.ca.gov/pub/outgoing/pur_archives/
 - [x] SSH key created (~/.ssh/id_ed25519_gitlab)
 - [x] SSH key added to GitLab
 - [x] Cloned brainstorming repo
-- [x] Pushed GeoSync_README.md to geosync-proposal branch
+- [x] Pushed Geo_README.md to geo-proposal branch
 - [x] Added system architecture diagram
-- [ ] Create geosync project repo (private)
+- [ ] Create geo project repo (private)
 
 ---
 
@@ -79,15 +79,15 @@ Source: https://files.cdpr.ca.gov/pub/outgoing/pur_archives/
 
 ## Files Created
 
-- ~/Desktop/GeoSync_README.md
-- ~/Desktop/GeoSync_Build_Plan.txt
-- ~/Desktop/GeoSync_Data_Sources.txt
-- ~/Desktop/GeoSync_User_Stories.txt
+- ~/Desktop/Geo_README.md
+- ~/Desktop/Geo_Build_Plan.txt
+- ~/Desktop/Geo_Data_Sources.txt
+- ~/Desktop/Geo_User_Stories.txt
 - ~/Desktop/ESPINA_email.txt
-- ~/Desktop/brainstorming/GeoSync_README.md (pushed to GitLab)
-- ~/Desktop/brainstorming/geosync_mockup.html
-- ~/Desktop/brainstorming/geosync_architecture.html
-- ~/Desktop/geosync_data/ (PUR data folder)
+- ~/Desktop/brainstorming/Geo_README.md (pushed to GitLab)
+- ~/Desktop/brainstorming/geo_mockup.html
+- ~/Desktop/brainstorming/geo_architecture.html
+- ~/Desktop/geo_data/ (PUR data folder)
 
 ---
 

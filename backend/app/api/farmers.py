@@ -24,7 +24,7 @@ router = APIRouter()
 security = HTTPBearer(auto_error=False)
 
 # JWT Configuration
-JWT_SECRET = "geosync-secret-key-change-in-production"
+JWT_SECRET = "geo-secret-key-change-in-production"
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
@@ -39,7 +39,7 @@ class FarmSize(str, Enum):
 class VerificationStatus(str, Enum):
     """
     Verification status for farmer-submitted reports.
-    GeoSync does not replace official state reporting (CalAgPermits/DPR),
+    Geo does not replace official state reporting (CalAgPermits/DPR),
     but integrates farmer-reported updates with official records.
     """
     pending = "pending"          # Submitted, awaiting verification
@@ -92,7 +92,7 @@ class SprayReportResponse(BaseModel):
 
 def hash_password(password: str) -> str:
     """Hash password with salt"""
-    salt = "geosync-salt"  # In production, use unique salt per user
+    salt = "geo-salt"  # In production, use unique salt per user
     return hashlib.sha256(f"{password}{salt}".encode()).hexdigest()
 
 def create_token(farmer_id: int, email: str) -> str:

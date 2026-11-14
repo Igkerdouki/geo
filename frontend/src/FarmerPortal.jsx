@@ -161,7 +161,7 @@ export default function FarmerPortal({ isOpen, onClose, onLogout }) {
       localStorage.setItem('farmer_token', res.data.token)
       setToken(res.data.token)
       setView('dashboard')
-      setSuccess('Registration successful! Welcome to GeoSync.')
+      setSuccess('Registration successful! Welcome to Geo.')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed')
@@ -287,7 +287,7 @@ export default function FarmerPortal({ isOpen, onClose, onLogout }) {
       <div className="portal-header">
         <Building className="portal-icon" />
         <h2>Register Your Farm</h2>
-        <p>Join GeoSync to report spray activities</p>
+        <p>Join Geo to report spray activities</p>
       </div>
 
       <form onSubmit={handleRegister}>
@@ -421,7 +421,7 @@ export default function FarmerPortal({ isOpen, onClose, onLogout }) {
         <div className="badge-card">
           <div className="badge-icon"><CheckCircle size={28} /></div>
           <div className="badge-content">
-            <h3>GeoSync Verified Farm</h3>
+            <h3>Geo Verified Farm</h3>
             <p>Consistent reporting builds your transparency record. Verified farms can share this badge with buyers, schools, and partners.</p>
             <div className="badge-progress">
               <span className="progress-label">{stats?.total_reports || 0} / 10 reports to earn badge</span>
@@ -435,7 +435,7 @@ export default function FarmerPortal({ isOpen, onClose, onLogout }) {
 
       {/* Benefits Banner */}
       <div className="benefits-section">
-        <h3>Why Report Through GeoSync?</h3>
+        <h3>Why Report Through Geo?</h3>
         <div className="benefits-grid">
           <div className="benefit-item">
             <div className="benefit-icon compliance"><FileText size={20} /></div>

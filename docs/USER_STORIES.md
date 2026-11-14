@@ -1,4 +1,4 @@
-# GeoSync User Stories
+# Geo User Stories
 
 ## Format
 **As a** [user type], **I want** [action], **so that** [benefit].

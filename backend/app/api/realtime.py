@@ -232,7 +232,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Send recent events on connect
         await websocket.send_json({
             "type": "connection_established",
-            "message": "Connected to GeoSync real-time feed",
+            "message": "Connected to Geo real-time feed",
             "recent_events": manager.spray_events[:10]
         })
 

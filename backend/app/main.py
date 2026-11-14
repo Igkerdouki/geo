@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
         spray_simulator_task.cancel()
 
 app = FastAPI(
-    title="GeoSync API",
+    title="Geo API",
     description="Real-time pesticide drift monitoring for California",
     version="0.1.0",
     lifespan=lifespan
@@ -31,7 +31,7 @@ app = FastAPI(
 
 # The historical PUR tables are tens of millions of rows and never change between runs,
 # so the heavy read-only aggregates are answered once and then served from a cache.
-CACHE_FILE = os.path.join(tempfile.gettempdir(), "geosync_api_cache.json")
+CACHE_FILE = os.path.join(tempfile.gettempdir(), "geo_api_cache.json")
 CACHED_PREFIXES = ("/api/sprays/", "/api/research/", "/api/history/")
 try:
     with open(CACHE_FILE) as f:
@@ -81,7 +81,7 @@ app.include_router(farmers.router, prefix="/api", tags=["farmers"])
 
 @app.get("/")
 def root():
-    return {"message": "GeoSync API", "version": "0.1.0"}
+    return {"message": "Geo API", "version": "0.1.0"}
 
 @app.get("/health")
 def health():

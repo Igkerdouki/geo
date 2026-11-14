@@ -85,7 +85,7 @@ def export_data(
     response = Response(
         content=output.getvalue(),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=geosync_export_{year or 'all'}.csv"}
+        headers={"Content-Disposition": f"attachment; filename=geo_export_{year or 'all'}.csv"}
     )
     return response
 

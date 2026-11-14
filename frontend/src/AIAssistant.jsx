@@ -79,7 +79,7 @@ Contact Poison Control: 1-800-222-1222`,
 5. **Application method** - Aerial spraying drifts more than ground
 
 **How to protect yourself:**
-- Monitor GeoSync alerts for nearby applications
+- Monitor Geo alerts for nearby applications
 - Stay indoors during high-risk conditions
 - Close windows when spraying is reported nearby
 - Keep children indoors during active spray times`,
@@ -117,7 +117,7 @@ Contact Poison Control: 1-800-222-1222`,
   schools: {
     answer: `**Schools Near Pesticide Application Zones:**
 
-GeoSync tracks schools in high-use agricultural counties:
+Geo tracks schools in high-use agricultural counties:
 
 **Highest Risk Counties (for schools):**
 1. **Fresno County** - 15+ schools in high-exposure zones
@@ -131,7 +131,7 @@ GeoSync tracks schools in high-use agricultural counties:
 
 **What schools can do:**
 - Register for SprayDays California alerts
-- Monitor GeoSync for nearby applications
+- Monitor Geo for nearby applications
 - Have indoor air filtration
 - Adjust outdoor activities during spray events`,
     risk: "high"
@@ -142,7 +142,7 @@ export default function AIAssistant({ isOpen, onClose }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Hi! I'm the GeoSync AI Assistant. I can help you with:
+      content: `Hi! I'm the Geo AI Assistant. I can help you with:
 
 - **Chemical information** - What pesticides are used and their risks
 - **Location data** - Spray history for specific counties
@@ -266,7 +266,7 @@ Try asking about one of these topics!`
         <div className="ai-header">
           <div className="ai-title">
             <Sparkles size={20} />
-            <span>GeoSync AI Assistant</span>
+            <span>Geo AI Assistant</span>
           </div>
           <button className="ai-close" onClick={onClose}><X size={20} /></button>
         </div>

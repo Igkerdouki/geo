@@ -10,13 +10,13 @@ from datetime import datetime
 
 # Database connection
 DB_CONFIG = {
-    'dbname': 'geosync',
+    'dbname': 'geo',
     'user': os.environ.get('USER', 'ioannagkerdouki'),
     'host': 'localhost'
 }
 
 # PUR data directory
-PUR_DATA_DIR = '/Users/ioannagkerdouki/Desktop/geosync_data/pur2023/pur2023/pur_data'
+PUR_DATA_DIR = '/Users/ioannagkerdouki/Desktop/geo_data/pur2023/pur2023/pur_data'
 
 def parse_date(date_str):
     """Parse PUR date format (e.g., '01-FEB-2023')"""

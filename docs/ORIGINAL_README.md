@@ -1,4 +1,4 @@
-# GeoSync
+# Geo
 
 **Real-time pesticide drift monitoring and research platform for California**
 
@@ -8,7 +8,7 @@ Every year, millions of pounds of pesticides drift off farms into communities �
 
 ## Solution
 
-GeoSync combines California's Pesticide Use Reports (PUR) with drift modeling and toxicity data to provide:
+Geo combines California's Pesticide Use Reports (PUR) with drift modeling and toxicity data to provide:
 
 - **Live Map Dashboard** - See spray events with color-coded risk zones
 - **Drift Prediction** - Predict where pesticides will travel using Gaussian plume modeling
@@ -119,7 +119,7 @@ curl "http://localhost:8001/api/research/compare/counties?codes=10,15&year=2023"
 ## Project Structure
 
 ```
-geosync/
+geo/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI entry point

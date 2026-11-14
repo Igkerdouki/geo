@@ -39,7 +39,7 @@ function Landing({ onEnter }) {
     <div className="landing">
       <section className="lp-hero">
         <header className="lp-nav">
-          <div className="lp-logo"><span className="lp-logo-icon"><Zap size={18} /></span>GeoSync</div>
+          <div className="lp-logo"><span className="lp-logo-icon"><Zap size={18} /></span>Geo</div>
           <nav className="lp-links">
             <a href="#lp-what">What it does</a>
             <a href="#lp-why">Why it matters</a>
@@ -60,7 +60,7 @@ function Landing({ onEnter }) {
                 Someone is always <em>downwind.</em>
               </motion.h1>
               <motion.p initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}>
-                California records every pesticide application in the state. GeoSync turns that
+                California records every pesticide application in the state. Geo turns that
                 public record into a live map, a drift forecast and a warning — for the school,
                 the clinic and the family next to the field.
               </motion.p>
@@ -155,7 +155,7 @@ function Landing({ onEnter }) {
           <button className="lp-btn lp-btn-dark" onClick={onEnter}>Open the live map <ArrowRight size={18} /></button>
         </motion.div>
         <footer className="lp-foot">
-          <span>GeoSync · a research prototype. Live events on the map are simulated for demonstration.</span>
+          <span>Geo · a research prototype. Live events on the map are simulated for demonstration.</span>
           <span>Photographs: Jeff Vanuga and USDA NRCS; Charles O'Rear, EPA Documerica (US National Archives). Public domain.</span>
         </footer>
       </section>

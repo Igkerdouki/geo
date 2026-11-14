@@ -10,12 +10,12 @@ import psycopg2
 from datetime import datetime
 
 DB_CONFIG = {
-    'dbname': 'geosync',
+    'dbname': 'geo',
     'user': os.environ.get('USER', 'ioannagkerdouki'),
     'host': 'localhost'
 }
 
-BASE_DIR = '/Users/ioannagkerdouki/Desktop/geosync_data'
+BASE_DIR = '/Users/ioannagkerdouki/Desktop/geo_data'
 
 def parse_date(date_str):
     if not date_str or date_str.strip() == '':

@@ -8,3 +8,4 @@ dist/
 /data/
 *.zip
 .DS_Store
+*.log

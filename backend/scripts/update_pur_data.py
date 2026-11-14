@@ -20,7 +20,7 @@ from psycopg2.extras import execute_values
 # Database connection
 DB_CONFIG = {
     "host": "localhost",
-    "database": "geosync",
+    "database": "geo",
     "user": os.getenv("POSTGRES_USER", "postgres"),
     "password": os.getenv("POSTGRES_PASSWORD", "postgres")
 }
@@ -181,7 +181,7 @@ def extract_and_load(zip_path, year):
 
 def main():
     print("=" * 60)
-    print("GeoSync PUR Data Updater")
+    print("Geo PUR Data Updater")
     print("=" * 60)
     print(f"Current date: {datetime.now().strftime('%Y-%m-%d')}")
     print()
