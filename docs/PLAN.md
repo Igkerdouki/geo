@@ -59,7 +59,7 @@ recorded SprayDays example, labelled as such.
 ## Demo script (90 seconds at the table)
 1. Hook: one striking number about spraying near schools, big on screen.
 2. "California built an alert system. About 3,700 people use it. Here's why." Show a raw SprayDays notice.
-3. Ask Downwind: "Is Lincoln Elementary safe tomorrow?" → tool-call panel lights up → map flies in → plume drifts
+3. Ask Geo: "Is Lincoln Elementary safe tomorrow?" → tool-call panel lights up → map flies in → plume drifts
    over the school.
 4. "Give me your phone number." The judge's phone rings, and they ask a follow-up in Spanish.
 5. "Where did you grow up?" → their hometown's 10 years of spraying.

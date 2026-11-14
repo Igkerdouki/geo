@@ -1,6 +1,6 @@
-# Downwind
+# Geo
 
-**Someone is always downwind. Downwind tells you when it's you.**
+**Someone is always downwind. Geo tells you when it's you.**
 
 California announces restricted pesticide applications up to 48 hours ahead through
 [SprayDays](https://www.cdpr.ca.gov/docs/pesticide_notification_network). Almost nobody uses it:
@@ -8,7 +8,7 @@ about 3,700 people signed up in its first year. A notice also only says *"a rest
 somewhere in this square mile"*. It doesn't say which way it will drift, how dangerous it is, or whether your kid's
 school is in its path.
 
-Downwind is an AI agent that answers one question in plain English or Spanish, by text or a phone call:
+Geo is an AI agent that answers one question in plain English or Spanish, by text or a phone call:
 
 > **"Is my kid's school safe tomorrow?"**
 >
@@ -25,7 +25,7 @@ Built at **SanD Hacks 2026** (UC San Diego, Nov 14–15).
       LLM agent
           ↓  calls tools over MCP
  ┌──────────────────────────────────────────────┐
- │            Downwind MCP server               │
+ │               Geo MCP server                 │
  │ find_place("Lincoln Elementary")  schools / geocoder
  │ upcoming_sprays(place, radius)    SprayDays notices
  │ past_sprays(place, years)         Neon Postgres (PUR data)
