@@ -251,7 +251,7 @@
 ## BACKLOG (Future / Stretch)
 
 ### NLP Query Engine
-- [ ] Set up OpenAI/Claude API
+- [ ] Set up LLM API
 - [ ] Create RAG pipeline
 - [ ] POST /api/query
 - [ ] "What was sprayed near X last week?"
