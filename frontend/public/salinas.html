@@ -104,13 +104,14 @@ h1 em{font-style:italic;color:var(--bone2)}
   </div>
 
   <div class="overlay-top">
-    <div class="live" id="hLive">Modelled scenario</div><div id="weatherStatus" role="status">Loading current wind…</div>
-    <div>Illustrative time · <b id="hTime">06:40</b> · <span id="hSky">Golden hour</span></div>
-    <div id="hSec">Sec 15 · T13S R18E</div>
+    <div class="live" id="hLive">Modelled scenario</div>
+    <details style="font-size:11px;letter-spacing:0;text-transform:none;max-width:280px;margin-left:auto"><summary style="cursor:pointer;opacity:.65">Model details</summary><div id="weatherStatus" role="status">Loading current wind…</div>
+    <div hidden>Illustrative time · <b id="hTime">06:40</b> · <span id="hSky">Golden hour</span></div>
+    <div id="hSec">Sec 15 · T13S R18E</div></details>
   </div>
 
   <div class="legend">
-    <div class="items"><span><i class="sw rec"></i>Recorded: CDPR Pesticide Use Reports</span><span><i class="sw mod"></i>Modelled: shared backend plume</span><span><i class="sw unm"></i>Not measured exposure</span></div>
+    <div class="items"><span><i class="sw rec"></i>Recorded: CDPR Pesticide Use Reports</span><span><i class="sw mod"></i>Modelled drift</span><span><i class="sw unm"></i>Not measured exposure</span></div>
     <div class="hint">Drag the scene to orbit · wheel to zoom · arrow keys turn the wind</div>
   </div>
 
@@ -616,7 +617,7 @@ function applySimulation(result){
     U.uGrid.value.dispose();U.uGrid.value=texture;U.uExtent.value=g.extent_m*S;
   }
   plumes.forEach(p=>p.visible=result.status==='complete');
-  document.getElementById('weatherStatus').textContent=result.status==='complete' ? `Shared backend simulation ${result.id} · modelled, not measured` : result.status==='no_source' ? 'No recorded source nearby · no plume inferred' : result.status==='calm' ? 'Calm wind · plume unavailable' : 'Backend simulation unavailable or loading';
+  document.getElementById('weatherStatus').textContent=result.status==='complete' ? 'Modelled drift · not measured exposure' : result.status==='no_source' ? 'No recorded source nearby · no plume inferred' : result.status==='calm' ? 'Calm wind · plume unavailable' : 'Backend simulation unavailable or loading';
   if(window===window.top)window.postMessage({type:'gaia-context',context:{location:{name:QS.get('name')||D.name,lat:D.center[0],lon:D.center[1]},scenario:result.status==='complete'?result.scenario:null}},location.origin);
   acceptingShared=false;updateTints(90,true);if(reduce)render();
 }
@@ -775,7 +776,7 @@ function render(){
   plumes.forEach(p=>{ p.visible=!ingredientDemo && sharedSimulation?.status==='complete'; p.material.uniforms.uTime.value = t; p.material.uniforms.uFront.value = front; });
   syncYaw();
   updateTints(front, reduce);
-  if(ingredientDemo){document.getElementById('hSec').textContent='DEMO SOURCE · selected location · not a reported application';document.getElementById('weatherStatus').textContent='DEMO · backend ingredient transport · synthetic assumptions';document.getElementById('rSchool').textContent='Not evaluated';document.getElementById('rHomes').textContent='Not evaluated';srcPin.visible=srcDisc.visible=false;}
+  if(ingredientDemo){document.getElementById('hSec').textContent='Hypothetical release at selected location';document.getElementById('weatherStatus').textContent='Demo scenario · illustrative ingredient properties';document.getElementById('rSchool').textContent='Not evaluated';document.getElementById('rHomes').textContent='Not evaluated';srcPin.visible=srcDisc.visible=false;}
   placeTags(W, H);
   renderer.render(scene, camera);
 }
