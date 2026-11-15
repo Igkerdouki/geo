@@ -1004,7 +1004,7 @@ function App() {
                 </div>
                 <div className="method-item">
                   <span className="method-label">Limitations</span>
-                  <span className="method-value">PUR data has 12-18 month reporting lag. Geo does not replace official state reporting systems.</span>
+                  <span className="method-value">PUR data has 12-18 month reporting lag. AskGaia does not replace official state reporting systems.</span>
                 </div>
                 <div className="method-item">
                   <span className="method-label">Farmer Portal</span>
@@ -1012,7 +1012,7 @@ function App() {
                 </div>
                 <div className="method-item">
                   <span className="method-label">Data Integration</span>
-                  <span className="method-value">Geo combines official PUR datasets with optional farmer-reported updates to provide faster, more localized monitoring while preserving data credibility through verification labeling.</span>
+                  <span className="method-value">AskGaia combines official PUR datasets with optional farmer-reported updates to provide faster, more localized monitoring while preserving data credibility through verification labeling.</span>
                 </div>
               </div>
               <div className="methodology-citation">
@@ -1268,7 +1268,7 @@ function App() {
       <header className="header">
         <div className="logo" onClick={() => setShowLanding(true)} title="Back to the overview">
           <div className="logo-icon"><Zap size={20} /></div>
-          <span className="logo-text">Geo</span>
+          <span className="logo-text">AskGaia</span>
         </div>
 
         <nav className="nav">

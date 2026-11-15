@@ -1,3 +1,4 @@
+from app.config import BACKEND_ROOT
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -6,7 +7,7 @@ import json
 import os
 import tempfile
 
-from app.api import sprays, drift, research, toxicity, locations, realtime, weather, history, farmers
+from app.api import investigations, sprays, drift, research, toxicity, locations, realtime, weather, history, farmers
 
 # Background task for spray simulation
 spray_simulator_task = None
@@ -15,15 +16,16 @@ spray_simulator_task = None
 async def lifespan(app: FastAPI):
     # Startup: start the spray simulator
     global spray_simulator_task
-    spray_simulator_task = asyncio.create_task(realtime.spray_simulator())
-    print("Started real-time spray simulator")
+    spray_simulator_task = asyncio.create_task(realtime.spray_simulator()) if os.getenv("GEO_ENABLE_LEGACY_SIMULATOR") == "1" else None
+    if spray_simulator_task:
+        print("Started DEMO spray simulator")
     yield
     # Shutdown: cancel simulator
     if spray_simulator_task:
         spray_simulator_task.cancel()
 
 app = FastAPI(
-    title="Geo API",
+    title="AskGaia API",
     description="Real-time pesticide drift monitoring for California",
     version="0.1.0",
     lifespan=lifespan
@@ -79,10 +81,22 @@ app.include_router(weather.router, prefix="/api", tags=["weather"])
 app.include_router(history.router, prefix="/api", tags=["history"])
 app.include_router(farmers.router, prefix="/api", tags=["farmers"])
 
-@app.get("/")
-def root():
-    return {"message": "Geo API", "version": "0.1.0"}
+app.include_router(investigations.router, prefix="/api", tags=["investigations"])
 
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
+# Production preview: API routes take priority; static assets are mounted last.
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+FRONTEND_DIST = BACKEND_ROOT.parent / "frontend" / "dist"
+if FRONTEND_DIST.is_dir():
+    @app.get("/explorer", include_in_schema=False)
+    def explorer_page():
+        return FileResponse(FRONTEND_DIST / "index.html")
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+else:
+    @app.get("/")
+    def root():
+        return {"message": "AskGaia API. Start the frontend on port 5173, or build it to enable the single-server preview.", "version": "0.2.0"}
