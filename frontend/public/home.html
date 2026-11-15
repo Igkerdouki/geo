@@ -1015,7 +1015,7 @@ requestAnimationFrame(frame);
   }
   var mb=document.createElement('button'); mb.type='button'; mb.id='soundBtn'; mb.setAttribute('aria-label','Sound on'); mb.textContent='♪ Sound on';
   mb.onclick=function(){ muted=!muted; mb.textContent=muted?'♪ Sound off':'♪ Sound on'; mb.setAttribute('aria-label',mb.textContent) };
-  document.querySelector('header').appendChild(mb);
+  // sound toggle removed from the header
   var go=window.askGaia; window.askGaia=function(q){ sfx(); if(!matchMedia('(prefers-reduced-motion: reduce)').matches) warp(); go(q) };
   var back=document.getElementById('back'), ob=back.onclick; back.onclick=function(){ sfx(); ob&&ob() };
   document.getElementById('enterMap').onclick=function(){ window.askGaia('') };
