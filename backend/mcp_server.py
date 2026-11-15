@@ -7,6 +7,7 @@ Tools an AI agent can call to investigate a place in California:
   chemical_profile what a chemical is and how hazardous it is
   wind             hourly wind for a place (forecast or a past date)
   run_plume        modelled drift from a source toward a target (Gaussian plume)
+  water_nearby     rivers, canals, lakes nearby + pesticides measured in surface water (CDPR SURF)
   cite_sources     datasets, versions and known limitations
 
 Run:  python mcp_server.py            (stdio, for any MCP client)
@@ -159,6 +160,60 @@ def wind(lat: float, lon: float, day: str = "") -> dict:
             "hours": hours[::3], "source": "Open-Meteo (ERA5 archive / forecast)"}
 
 
+@mcp.tool
+def water_nearby(lat: float, lon: float, radius_km: float = 2.0) -> dict:
+    """Water near a place in California and what has been MEASURED in it.
+    Returns rivers, streams, irrigation canals and lakes (OpenStreetMap) plus CDPR SURF
+    surface-water monitoring sites within radius_km, with pesticide detections (2010-2025)."""
+    r = int(radius_km * 1000)
+    q = f"""[out:json][timeout:20];
+    (way["waterway"~"river|stream|canal|drain|ditch"](around:{r},{lat},{lon});
+     way["natural"="water"](around:{r},{lat},{lon});
+     relation["natural"="water"](around:{r},{lat},{lon}););
+    out tags center 200;"""
+    bodies = {}
+    try:
+        els = httpx.post("https://overpass-api.de/api/interpreter", data={"data": q},
+                         timeout=25, headers=UA).json().get("elements", [])
+        for e in els:
+            t = e.get("tags", {})
+            kind = t.get("waterway") or t.get("water") or t.get("natural")
+            name = t.get("name") or f"unnamed {kind}"
+            c = e.get("center") or {}
+            d = (math.hypot((c.get("lat", lat) - lat) * 111_320,
+                            (c.get("lon", lon) - lon) * 111_320 * math.cos(math.radians(lat))))
+            if name not in bodies or d < bodies[name]["approx_distance_m"]:
+                bodies[name] = {"name": name, "type": kind, "approx_distance_m": round(d)}
+    except Exception as ex:  # Overpass can be busy; the measured data below still works
+        bodies = {"error": {"name": f"water map unavailable: {type(ex).__name__}",
+                            "type": "error", "approx_distance_m": 0}}
+    with _db() as conn:
+        sites = conn.execute(
+            """
+            SELECT site_code, name, county, samples, detections, last::date,
+                   round(ST_Distance(ST_MakePoint(lon, lat)::geography,
+                                     ST_MakePoint(%(lon)s, %(lat)s)::geography)) d
+            FROM surf_sites
+            WHERE ST_DWithin(ST_MakePoint(lon, lat)::geography,
+                             ST_MakePoint(%(lon)s, %(lat)s)::geography, %(r)s)
+            ORDER BY d LIMIT 8
+            """, {"lat": lat, "lon": lon, "r": r}).fetchall()
+        out_sites = []
+        for code, name, county, n, det, last, d in sites:
+            chems = conn.execute(
+                "SELECT chemical, n, round(max_ppb::numeric, 3) FROM surf_site_chems "
+                "WHERE site_code=%s ORDER BY n DESC LIMIT 5", (code,)).fetchall()
+            out_sites.append({"site": name, "distance_m": int(d), "samples": n,
+                              "detections": det, "last_sample": str(last),
+                              "most_detected": [{"chemical": c, "times": k, "max_ppb": float(m)}
+                                                for c, k, m in chems]})
+    return {"radius_km": radius_km,
+            "water_bodies": sorted(bodies.values(), key=lambda b: b["approx_distance_m"])[:12],
+            "monitoring_sites": out_sites,
+            "note": "Detections are measured in surface water by CDPR and partner agencies (SURF). "
+                    "Surface water is not the same as drinking water."}
+
+
 # Briggs rural dispersion (sigma_y, sigma_z as functions of downwind distance x in metres)
 _SIG = {
     "A": (0.22, lambda x: 0.20 * x),
@@ -214,6 +269,9 @@ def cite_sources() -> dict:
              "years": "2014-2024", "url": "https://www.cdpr.ca.gov/docs/pur/purmain.htm"},
             {"name": "PLSS sections", "publisher": "CDPR CalPIP", "version": "2025",
              "url": "https://calpip.cdpr.ca.gov/plssFiles.cfm"},
+            {"name": "Surface Water Database (SURF)", "publisher": "CDPR", "years": "2010-2025",
+             "url": "https://www.cdpr.ca.gov/environmental-monitoring/surface-water/"},
+            {"name": "Water bodies", "publisher": "OpenStreetMap contributors"},
             {"name": "Wind", "publisher": "Open-Meteo (ERA5 reanalysis / forecast)", "url": "https://open-meteo.com"},
             {"name": "Geocoding", "publisher": "US Census Geocoder / OpenStreetMap Nominatim"},
         ],

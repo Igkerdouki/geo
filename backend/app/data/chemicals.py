@@ -262,3 +262,50 @@ def get_toxicity_category_info(category: str) -> dict:
 def get_chemical_class_info(class_name: str) -> dict:
     """Get info about a chemical class."""
     return CHEMICAL_CLASSES.get(class_name)
+
+
+# Soil fumigants: the largest-volume chemicals near many Salinas Valley and Central Valley schools.
+# Fumigants caused 45% of drift-related pesticide illness cases in Lee et al. 2011 (EHP).
+CHEMICAL_INFO.update({
+    136: {
+        "name": "CHLOROPICRIN",
+        "type": "Soil fumigant",
+        "chemical_class": "Halogenated nitroalkane",
+        "restricted_use": True,
+        "carcinogen": "Not the main concern; acute irritant",
+        "notes": "Strong eye and respiratory irritant (used as a tear gas in WWI). "
+                 "Drift into a Kern County neighbourhood in 2003 sickened 165 people (CDC MMWR 2004).",
+    },
+    573: {
+        "name": "1,3-DICHLOROPROPENE",
+        "type": "Soil fumigant",
+        "chemical_class": "Halogenated hydrocarbon",
+        "restricted_use": True,
+        "carcinogen": "Listed under California Prop 65 as known to cause cancer",
+        "notes": "Sold as Telone. California limits how much can be used per township each year.",
+    },
+    616: {
+        "name": "METAM-SODIUM",
+        "type": "Soil fumigant",
+        "chemical_class": "Dithiocarbamate (breaks down to MITC)",
+        "restricted_use": True,
+        "carcinogen": "Listed under California Prop 65",
+        "notes": "Breaks down into methyl isothiocyanate (MITC), an eye and respiratory irritant. "
+                 "A 2002 application in Arvin, CA caused 252 illnesses (O'Malley et al. 2005).",
+    },
+    970: {
+        "name": "POTASSIUM N-METHYLDITHIOCARBAMATE",
+        "type": "Soil fumigant (metam-potassium)",
+        "chemical_class": "Dithiocarbamate (breaks down to MITC)",
+        "restricted_use": True,
+        "notes": "Potassium form of metam. Like metam-sodium it releases MITC, an eye and respiratory irritant.",
+    },
+    385: {
+        "name": "METHYL BROMIDE",
+        "type": "Soil and structural fumigant",
+        "chemical_class": "Halogenated hydrocarbon",
+        "restricted_use": True,
+        "notes": "Ozone-depleting; phased out under the Montreal Protocol except for critical and "
+                 "quarantine uses. Acutely toxic to the nervous system.",
+    },
+})
