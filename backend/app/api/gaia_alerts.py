@@ -1,4 +1,3 @@
-import asyncio
 import hmac
 import os
 import re
@@ -18,7 +17,8 @@ def create_watch(body:Context):
     check(body)
     if os.getenv('VERCEL') and not os.getenv('CRON_SECRET'):
         raise HTTPException(503,'Automatic alerts need the production scheduler configured. Manual checks remain available.')
-    return alerts.create(body)
+    try:return alerts.create(body)
+    except ValueError as e:raise HTTPException(429,str(e)) from None
 
 @router.get('/watches/{watch_id}')
 def get_watch(watch_id:str,authorization:str|None=Header(default=None)):
@@ -36,4 +36,4 @@ async def scheduled_check(authorization:str|None=Header(default=None)):
     secret=os.getenv('CRON_SECRET')
     if not secret or not hmac.compare_digest(authorization or '',f'Bearer {secret}'):
         raise HTTPException(401,'Scheduler authorization required.')
-    return {'checked':sum(await asyncio.gather(*(alerts.check_due(limit=1) for _ in range(4))))}
+    return {'checked':await alerts.check_due()}

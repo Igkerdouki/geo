@@ -14,7 +14,7 @@ from app.gaia import Context, build_report
 SCHEMA='''CREATE TABLE IF NOT EXISTS geo_gaia_watches (
  id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, enabled INTEGER NOT NULL,
  due DOUBLE PRECISION NOT NULL, lease TEXT NOT NULL, payload TEXT NOT NULL)'''
-INTERVAL=3600
+INTERVAL=86400 if os.getenv('VERCEL') else 3600
 
 def query(sql,params=()):
     if neon_http.enabled() and os.getenv('DATABASE_URL'):
@@ -26,7 +26,8 @@ def query(sql,params=()):
 def create(context):
     token=secrets.token_hex(32);wid=secrets.token_hex(16)
     data={'id':wid,'context':context.model_dump(exclude={'scenario'}),'alerts':[],'baseline':{},'status':'pending','checked_at':None,'report_id':None}
-    query('INSERT INTO geo_gaia_watches VALUES (%s,%s,1,%s,%s,%s)',(wid,hashlib.sha256(token.encode()).hexdigest(),time.time(),' ',json.dumps(data)))
+    inserted=query('INSERT INTO geo_gaia_watches SELECT %s,%s,1,%s,%s,%s WHERE (SELECT COUNT(*) FROM geo_gaia_watches WHERE enabled=1)<20 RETURNING id',(wid,hashlib.sha256(token.encode()).hexdigest(),time.time(),' ',json.dumps(data)))
+    if not inserted:raise ValueError('The automatic monitoring beta is at capacity (20 active watches). Manual checks remain available.')
     return {**data,'token':token,'enabled':True,'interval_seconds':INTERVAL}
 
 def read(wid,token):
@@ -59,34 +60,37 @@ def changes(previous,current):
             messages.append(f"Weather-model wind changed from {a['speed']:.1f} m/s, {a['direction']:.0f}° to {b['speed']:.1f} m/s, {b['direction']:.0f}°. Not an exposure or spraying alert.")
     return messages
 
-async def check_due(limit=4):
+async def check_due(limit=20):
     now=time.time()
     rows=await asyncio.to_thread(query,'SELECT id FROM geo_gaia_watches WHERE enabled=1 AND due<=%s ORDER BY due LIMIT %s',(now,limit))
-    processed=0
-    for (wid,) in rows:
-        lease=secrets.token_hex(16)
-        claimed=await asyncio.to_thread(query,'UPDATE geo_gaia_watches SET due=%s,lease=%s WHERE id=%s AND enabled=1 AND due<=%s RETURNING payload',(time.time()+300,lease,wid,now))
-        if not claimed:continue
-        data=json.loads(claimed[0][0]);old_status=data['status'];messages=[];report=None
-        try:
-            report=await asyncio.wait_for(build_report(Context(**data['context'])),120)
-            current=snapshot(report);messages=changes(data['baseline'],current)
-            status='complete' if all(k in current for k in ('records','weather')) else 'partial'
-            if not data['checked_at'] and current:messages.insert(0,'Monitoring started. Initial evidence baseline saved.')
-            if status=='partial' and old_status!='partial':messages.append('Some monitored sources are unavailable. Previous values are preserved; missing data is not zero.')
-            if status=='complete' and old_status in ('partial','unavailable'):messages.append('Monitored evidence sources are available again.')
-            data['baseline'].update(current);data['report_id']=report['id'];data['status']=status
-        except asyncio.CancelledError:raise
-        except Exception:
-            data['status']='unavailable'
-            if old_status!='unavailable':messages=['Automatic check could not finish. Previous evidence is preserved; the next check will retry.']
-        checked=time.time();data['checked_at']=checked
-        for message in messages:
-            data['alerts'].insert(0,{'id':secrets.token_hex(12),'created_at':checked,'message':message,'report_id':report['id'] if report else None})
-        data['alerts']=data['alerts'][:50]
-        await asyncio.to_thread(query,'UPDATE geo_gaia_watches SET payload=%s,due=%s WHERE id=%s AND lease=%s',(json.dumps(data),checked+INTERVAL,wid,lease))
-        processed+=1
-    return processed
+    semaphore=asyncio.Semaphore(10)
+    async def process(wid):
+        async with semaphore:return await check_one(wid,now)
+    return sum(await asyncio.gather(*(process(wid) for (wid,) in rows)))
+
+async def check_one(wid,now):
+    lease=secrets.token_hex(16)
+    claimed=await asyncio.to_thread(query,'UPDATE geo_gaia_watches SET due=%s,lease=%s WHERE id=%s AND enabled=1 AND due<=%s RETURNING payload',(time.time()+300,lease,wid,now))
+    if not claimed:return 0
+    data=json.loads(claimed[0][0]);old_status=data['status'];messages=[];report=None
+    try:
+        report=await asyncio.wait_for(build_report(Context(**data['context'])),120)
+        current=snapshot(report);messages=changes(data['baseline'],current)
+        status='complete' if all(k in current for k in ('records','weather')) else 'partial'
+        if not data['checked_at'] and current:messages.insert(0,'Monitoring started. Initial evidence baseline saved.')
+        if status=='partial' and old_status!='partial':messages.append('Some monitored sources are unavailable. Previous values are preserved; missing data is not zero.')
+        if status=='complete' and old_status in ('partial','unavailable'):messages.append('Monitored evidence sources are available again.')
+        data['baseline'].update(current);data['report_id']=report['id'];data['status']=status
+    except asyncio.CancelledError:raise
+    except Exception:
+        data['status']='unavailable'
+        if old_status!='unavailable':messages=['Automatic check could not finish. Previous evidence is preserved; the next check will retry.']
+    checked=time.time();data['checked_at']=checked
+    for message in messages:
+        data['alerts'].insert(0,{'id':secrets.token_hex(12),'created_at':checked,'message':message,'report_id':report['id'] if report else None})
+    data['alerts']=data['alerts'][:50]
+    await asyncio.to_thread(query,'UPDATE geo_gaia_watches SET payload=%s,due=%s WHERE id=%s AND lease=%s',(json.dumps(data),((int(checked//86400)+1)*86400 if os.getenv('VERCEL') else checked+INTERVAL),wid,lease))
+    return 1
 
 async def scheduler():
     while True:

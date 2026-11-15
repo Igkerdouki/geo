@@ -12,7 +12,7 @@ Implemented across the React routes and standalone town pages through `frontend/
 - [x] PDF and JSON downloads, plus a source-linked text summary for sharing.
 - [x] Editable county-authority inquiry with official contact directory; no automatic sending.
 - [x] Browser-local watch access tokens with manual checks and preserved baselines on source failure.
-- [x] Durable hourly automatic watches, evidence-change alerts, and in-app unread badges.
+- [x] Durable automatic watches, evidence-change alerts, and in-app unread badges.
 
 ## Backend API
 
@@ -34,6 +34,6 @@ Pesticide/trend queries deduplicate intersecting PLSS section IDs before aggrega
 
 ## Automatic alerts
 
-Enable automatic alerts under Watching. The server checks historical recorded-use totals and chemical counts, plus weather-model wind; changes of at least 2 m/s or 45 degrees (both winds >=1 m/s) generate an evidence-linked alert. It never interprets these as confirmed spraying or exposure. Source outages preserve prior baselines. Alerts and watch state persist in Neon; bearer access tokens stay in browser storage. Stop/remove disables future checks. Clearing browser storage loses access to existing watches.
+Enable automatic alerts under Watching. The beta supports 20 active automatic watches. The server checks historical recorded-use totals and chemical counts, plus weather-model wind; changes of at least 2 m/s or 45 degrees (both winds >=1 m/s) generate an evidence-linked alert. It never interprets these as confirmed spraying or exposure. Source outages preserve prior baselines. Alerts and watch state persist in Neon; bearer access tokens stay in browser storage. Stop/remove disables future checks. Clearing browser storage loses access to existing watches.
 
-A long-running backend starts its worker automatically. Vercel requires `CRON_SECRET` and the five-minute cron configured in vercel.json (a plan supporting sub-daily cron). The authenticated endpoint claims up to four due watches with database leases; each watch is due hourly. In-app alerts are fetched every minute and on opening Watching. They accumulate while the tab is closed; no email, push permission, or external message is sent. Production enablement fails explicitly if the scheduler secret is missing.
+A long-running backend starts its worker automatically. Vercel requires `CRON_SECRET` and the daily cron configured in vercel.json (compatible with the current Hobby plan). The authenticated endpoint claims up to 20 due watches with database leases; production watches are checked daily; long-running local servers check hourly. In-app alerts are fetched every minute and on opening Watching. They accumulate while the tab is closed; no email, push permission, or external message is sent. Production enablement fails explicitly if the scheduler secret is missing.
