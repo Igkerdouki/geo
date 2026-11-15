@@ -307,8 +307,8 @@ header{pointer-events:auto}
 .wnote{margin-top:22px;font:400 11px "JetBrains Mono",monospace;color:var(--faint);line-height:1.6;max-width:90ch}
 @media(max-width:900px){.wstats{grid-template-columns:1fr 1fr}.wgrid{grid-template-columns:1fr}}
 @media(max-width:520px){.wstats{grid-template-columns:1fr}.wbar{grid-template-columns:100px 1fr 44px}}
-.archsec{position:relative;z-index:2;background:#030605;padding:6vh clamp(16px,3vw,40px) 2vh}
-.archsec iframe{display:block;width:100%;max-width:1360px;margin:0 auto;height:min(1080px,120vh);border:0;border-radius:18px;background:#07110e}
+.archsec{position:relative;z-index:2;background:#040a10;padding:0}
+.archsec iframe{display:block;width:100%;height:max(960px,100vh);border:0;background:#040a10}
 @media(max-width:900px){.archsec iframe{height:1500px}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -405,7 +405,7 @@ document.querySelectorAll('.places a').forEach(function(a){ a.addEventListener('
 </section>
 </div>
 <section class="archsec" id="architecture" aria-label="How askgaia works">
-  <iframe src="/architecture.html?v=3" title="askgaia system architecture: users, agent, two MCP servers, 14 tools, Neon" loading="lazy"></iframe>
+  <iframe src="/architecture.html?v=4" title="askgaia system architecture: users, agent, two MCP servers, 14 tools, Neon" loading="lazy"></iframe>
 </section>
 <div class="below">
   <section class="sec" id="facts">
