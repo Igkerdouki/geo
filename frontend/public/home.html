@@ -67,7 +67,8 @@ footer{display:flex;flex-direction:column;align-items:center;gap:16px}
   .search input{font-size:15px}
   .search button{height:38px;padding:0 14px}
 }
-html{height:auto;overflow-x:hidden}
+html{height:auto;overflow-x:hidden;overflow-y:auto}
+html:has(body.diving){overflow:hidden}
 body{height:auto;overflow:visible}
 .ui{position:relative;height:100vh;min-height:620px}
 .scrollcue{position:absolute;left:50%;top:calc(100vh - 26px);transform:translateX(-50%);font:400 10px "JetBrains Mono",monospace;letter-spacing:.3em;text-transform:uppercase;color:var(--faint);animation:cue 2.4s ease-in-out infinite}
@@ -1590,7 +1591,7 @@ function capHTML(i) {
     ${c.quote ? `<p class="te-quote">“In nature nothing exists alone.”</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
     <div class="te-mono te-data">${c.data}</div>
     ${c.quote ? '' : `<div class="te-src">Source · ${c.src}</div>`}
-    ${c.quote ? `<a class="te-cta" href="#ask">Ask Gaia about your place <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>` : nav}`;
+    ${c.quote ? `<a class="te-cta" href="#q" onclick="event.preventDefault();var q=parent.document.getElementById('q')||document.getElementById('q');if(q){scrollTo({top:0,behavior:'smooth'});setTimeout(function(){q.focus()},600)}else{location.href='/home.html'}">Ask Gaia about your place <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>` : nav}`;
 }
 capInner.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b && !b.disabled) scrollToCh(+b.dataset.go); });
 let shownCh = -1, swapT;
