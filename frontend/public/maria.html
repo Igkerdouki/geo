@@ -102,7 +102,7 @@
     <svg class="te-lines" aria-hidden="true"></svg>
     <div class="te-hud" aria-hidden="true">
       <div class="te-top te-mono">
-        <span class="te-brand">ask<b>gaia</b></span>
+        <a class="te-brand" href="/home.html" style="text-decoration:none;pointer-events:auto">ask<b>gaia</b></a>
         <span class="te-read hide-sm">Earth, understood</span>
         <span class="te-sep"></span>
         <span class="te-read hide-sm">Salinas, CA&nbsp;&nbsp;<em>36.68° N · 121.61° W</em></span>
@@ -709,7 +709,7 @@ function capHTML(i) {
     ${c.quote ? `<p class="te-quote">“In nature nothing exists alone.”</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
     <div class="te-mono te-data">${c.data}</div>
     ${c.quote ? '' : `<div class="te-src">Source · ${c.src}</div>`}
-    ${c.quote ? `<a class="te-cta" href="#q" onclick="event.preventDefault();var q=parent.document.getElementById('q')||document.getElementById('q');if(q){scrollTo({top:0,behavior:'smooth'});setTimeout(function(){q.focus()},600)}else{location.href='/home.html'}">Ask Gaia about your place <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>` : nav}`;
+    ${c.quote ? `<a class="te-cta" href="/home.html">Ask Gaia about your place <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>` : nav}`;
 }
 capInner.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b && !b.disabled) scrollToCh(+b.dataset.go); });
 let shownCh = -1, swapT;
