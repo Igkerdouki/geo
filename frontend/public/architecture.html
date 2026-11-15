@@ -104,8 +104,43 @@ footer{color:var(--faint);font-size:12px;max-width:90ch}
 .veil{position:absolute;inset:0;z-index:4;background:rgba(4,10,8,.45);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .35s}
 .veil.open{opacity:1;pointer-events:auto}
 @media(prefers-reduced-motion:reduce){.node,.pop,.edge{transition:none!important;animation:none!important}}
+/* ---- neon HUD skin ---- */
+:root{--bg:#040a10;--panel:rgba(9,24,32,.92);--line:rgba(101,219,235,.22);--line2:rgba(101,219,235,.5)}
+body{background:radial-gradient(60% 50% at 92% 0%,rgba(46,120,190,.28),transparent 70%),radial-gradient(50% 50% at 0% 100%,rgba(116,227,187,.12),transparent 70%),#040a10;position:relative;overflow-x:hidden}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.floor{position:fixed;left:-20%;right:-20%;bottom:-8%;height:42%;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(101,219,235,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(101,219,235,.22) 1px,transparent 1px);background-size:60px 60px;transform:perspective(500px) rotateX(62deg);transform-origin:bottom;-webkit-mask-image:linear-gradient(to top,#000 10%,transparent 85%);mask-image:linear-gradient(to top,#000 10%,transparent 85%)}
+.wrap{position:relative;z-index:1;padding:clamp(18px,2.4vw,34px);border:1px solid rgba(101,219,235,.45);border-radius:24px;background:linear-gradient(180deg,rgba(6,18,28,.55),rgba(4,12,18,.35));box-shadow:0 0 0 1px rgba(116,227,187,.08),0 0 40px rgba(101,219,235,.22),inset 0 0 60px rgba(101,219,235,.06)}
+.wrap::before,.wrap::after{content:"";position:absolute;width:70px;height:70px;border:2px solid #9ff5d0;filter:drop-shadow(0 0 6px #74e3bb)}
+.wrap::before{top:-1px;left:-1px;border-right:0;border-bottom:0;border-top-left-radius:24px}
+.wrap::after{bottom:-1px;right:-1px;border-left:0;border-top:0;border-bottom-right-radius:24px}
+.eyebrow::after{content:" ////";color:var(--green);letter-spacing:.05em}
+aside .eyebrow::after,.pop .k::after{content:""}
+h1 em{text-shadow:0 0 22px rgba(185,249,114,.45)}
+.scen button{border-color:rgba(101,219,235,.55);color:var(--text);box-shadow:0 0 14px rgba(101,219,235,.12)}
+.scen button[aria-pressed="true"]{box-shadow:0 0 22px rgba(185,249,114,.55)}
+.board{background:linear-gradient(rgba(101,219,235,.04) 1px,transparent 1px) 0 0/34px 34px,linear-gradient(90deg,rgba(101,219,235,.04) 1px,transparent 1px) 0 0/34px 34px,rgba(5,15,22,.82);border:1px solid rgba(116,227,187,.5);box-shadow:0 0 26px rgba(116,227,187,.2),inset 0 0 40px rgba(101,219,235,.06)}
+.node rect{fill:rgba(9,26,36,.95);stroke:rgba(101,219,235,.6);stroke-width:1.2}
+.node .ic{fill:none;stroke:var(--mint);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.node.on .ic{stroke:var(--green)}
+.node.on rect{fill:#10302a;stroke:var(--green);stroke-width:2}
+#edges{filter:drop-shadow(0 0 3px rgba(116,227,187,.65))}
+.edge{stroke:rgba(116,227,187,.42);stroke-width:1.5}
+.edge.hot{stroke:#c6ff7e;stroke-width:2.6}
+.running .node:not(.on):not(.sel){opacity:.5}
+.running .edge:not(.hot){opacity:.4}
+.box{fill:rgba(101,219,235,.035);stroke:rgba(101,219,235,.45)}
+.boxlabel{fill:#9ff5d0}
+.card{background:rgba(7,20,30,.88);border:1px solid rgba(101,219,235,.45);box-shadow:0 0 24px rgba(101,219,235,.16),inset 0 0 30px rgba(101,219,235,.05)}
+.log div{position:relative;padding-left:38px;background:rgba(3,10,16,.6);border:1px solid rgba(101,219,235,.18);border-left-width:2px}
+.log div::before{position:absolute;left:10px;top:8px;font:600 11px var(--mono);color:var(--mint)}
+.log .call::before{content:"</>";color:var(--green)}.log .resp::before{content:"{ }";color:var(--cyan)}.log .note::before{content:"!";color:var(--gold);left:15px}
+.spark{display:block;width:100%;min-width:0;height:56px;margin-top:10px}
+.spark rect{fill:var(--green);filter:drop-shadow(0 0 3px rgba(185,249,114,.7))}
+.sparkcap{font:400 10.5px var(--mono);color:var(--faint);margin-top:4px;display:flex;justify-content:space-between}
+.ctrl button.play{box-shadow:0 0 18px rgba(185,249,114,.45)}
 </style>
 
+<canvas id="sky" aria-hidden="true"></canvas><div class="floor" aria-hidden="true"></div>
 <div class="wrap">
   <header>
     <div>
@@ -114,15 +149,15 @@ footer{color:var(--faint);font-size:12px;max-width:90ch}
       <p class="lede">Press play to watch a question travel through askgaia: the investigator agent calls tools on two MCP servers, and every answer comes back with its sources and limits. Click any box to pop it open.</p>
     </div>
     <div class="scen" role="group" aria-label="Scenario">
-      <button id="sc0" aria-pressed="true">Ask about a school</button>
-      <button id="sc1" aria-pressed="false">Any AI can use it</button>
+      <button id="sc0" aria-pressed="true">▶&nbsp; Ask about a school</button>
+      <button id="sc1" aria-pressed="false">✦&nbsp; Any AI can use it</button>
     </div>
   </header>
 
   <div class="stage">
     <section class="board" aria-label="Animated architecture diagram">
       <div class="veil" id="veil"></div>
-      <div class="pop" id="pop" role="dialog" aria-modal="false" aria-labelledby="popT"><button class="x" id="popX" aria-label="Close">×</button><div class="k" id="popK"></div><h3 id="popT"></h3><p id="popP"></p><dl class="kv" id="popKV"></dl><div class="chips" id="popC"></div></div>
+      <div class="pop" id="pop" role="dialog" aria-modal="false" aria-labelledby="popT"><button class="x" id="popX" aria-label="Close">×</button><div class="k" id="popK"></div><h3 id="popT"></h3><p id="popP"></p><dl class="kv" id="popKV"></dl><div class="chips" id="popC"></div><div id="popSpark"></div></div>
             <div class="scroller"><svg id="svg" viewBox="0 50 1280 700" role="img" aria-label="askgaia architecture: users, interfaces, agent, two MCP servers, agents, MCP tools and data sources">
         <defs>
           <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
@@ -147,7 +182,7 @@ footer{color:var(--faint);font-size:12px;max-width:90ch}
         <h3 id="infoT">Orchestrator agent</h3>
         <p id="infoP"></p>
         <dl class="kv" id="infoKV"></dl>
-        <div class="chips" id="infoChips"></div>
+        <div class="chips" id="infoChips"></div><div id="infoSpark"></div>
       </div>
       <div class="card">
         <div class="eyebrow">Tool-call trace · example values</div>
@@ -166,10 +201,10 @@ const N={
  user:{x:20,y:200,w:160,h:58,t:'Parents · clinics',s:'researchers · judges',kind:'People',
    p:'Ask about a place in plain words: a school, a street, a town. They see an answer with sources, a map and a drift scenario.',
    kv:{Asks:'"Is Alisal High near heavy spraying?"',Gets:'Observed · Modelled · Uncertain'}},
- ui:{x:20,y:380,w:160,h:58,t:'askgaia web app',s:'React · three.js · Google 3D',kind:'Interface',
+ ui:{x:20,y:380,w:160,h:58,t:'askgaia web app',s:'React · three.js · 3D',kind:'Interface',
    p:'The landing Earth, Maria’s story, the photoreal map and the real-town models. Built by Ioanna.',
    kv:{Views:'Earth · California · town model'}},
- ai:{x:20,y:560,w:160,h:58,t:'Any MCP client',s:'Claude Desktop · Cursor',kind:'Interface',
+ ai:{x:20,y:560,w:160,h:58,t:'Any MCP client',s:'Claude · Cursor',kind:'Interface',
    p:'Because the tools speak MCP, any AI assistant can use askgaia directly, not only our web app.',kv:{Protocol:'Model Context Protocol'}},
  orch:{x:250,y:380,w:170,h:66,t:'Investigator agent',s:'LLM · plans + routes',kind:'Agent',
    p:'Reads the question, decides which tools to call, and writes the answer only from tool results, so every claim carries a source.',
@@ -191,9 +226,9 @@ const N={
  t_case:{x:760,y:650,w:210,h:40,t:'investigation tools',s:'evidence MCP · 4 tools',kind:'MCP tool',p:'get_investigation, explain_finding, check_source_change, get_county_records.',kv:{Server:'askgaia evidence MCP'}},
  d_neon:{x:1050,y:150,w:210,h:84,t:'Neon Postgres + PostGIS',s:'the data backbone',kind:'Database',p:'11.1 M rows of pesticide use 2014–2024, 329k square-mile sections, 1,092 chemicals, 3,817 water sites, and saved investigations.',kv:{Rows:'11.1 M summarised from 48 M',Extensions:'PostGIS'}},
  d_wx:{x:1050,y:300,w:210,h:40,t:'Open-Meteo',s:'wind archive + forecast',kind:'Data source',p:'Hourly wind for any place and date.',kv:{Access:'public API'}},
- d_osm:{x:1050,y:360,w:210,h:40,t:'OpenStreetMap',s:'buildings · streets · canals',kind:'Data source',p:'Real buildings, street names, canals, schools, gas stations, churches.',kv:{Via:'OpenFreeMap vector tiles'}},
+ d_osm:{x:1050,y:360,w:210,h:40,t:'OpenStreetMap',s:'buildings · streets',kind:'Data source',p:'Real buildings, street names, canals, schools, gas stations, churches.',kv:{Via:'OpenFreeMap vector tiles'}},
  d_bd:{x:1050,y:550,w:210,h:40,t:'Bright Data',s:'SERP + Web Unlocker',kind:'Data source',p:'Searches and reads public web pages for evidence.',kv:{Track:'Data for Good'}},
- d_cdpr:{x:1050,y:440,w:210,h:58,t:'CDPR open data',s:'Pesticide Use Reports · SURF',kind:'Data source',p:'California Department of Pesticide Regulation records, loaded into Neon.',kv:{Years:'2014–2024'}}
+ d_cdpr:{x:1050,y:440,w:210,h:58,t:'CDPR open data',s:'PUR · SURF water',kind:'Data source',p:'California Department of Pesticide Regulation records, loaded into Neon.',kv:{Years:'2014–2024'}}
 };
 const BOXES=[{x:740,y:72,w:250,h:380,l:'SPATIAL MCP · 7 TOOLS'},{x:740,y:472,w:250,h:230,l:'EVIDENCE MCP · 7 TOOLS'}];
 const E=[['user','ui'],['user','ai'],['ui','orch'],['ai','orch'],['orch','loc'],['orch','data'],['orch','sim'],['orch','ver'],['ui','sim'],
@@ -227,25 +262,35 @@ E.forEach(([a,b])=>{const A=C(a),B=C(b);let s,e;
   const dx=Math.abs(e[0]-s[0])*.5||40;
   const d=(s[1]===e[1]||Math.abs(e[0]-s[0])>20)?`M${s[0]},${s[1]} C${s[0]+(e[0]>s[0]?dx:-dx)},${s[1]} ${e[0]-(e[0]>s[0]?dx:-dx)},${e[1]} ${e[0]},${e[1]}`:`M${s[0]},${s[1]} C${s[0]},${(s[1]+e[1])/2} ${e[0]},${(s[1]+e[1])/2} ${e[0]},${e[1]}`;
   paths[a+'>'+b]=mk('path',{d,class:'edge'},gE)});
+const IC={people:'M6 7a2.5 2.5 0 1 0 0-.01M1.5 14c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M11 6.5a2 2 0 1 0 0-.01M12 10c1.6.3 2.8 1.6 2.8 3.5',
+ monitor:'M1.5 2.5h13v9h-13zM5.5 14.5h5M8 11.5v3',laptop:'M3 3.5h10v7H3zM1 13h14',cube:'M8 1.5l6 3.2v6.6L8 14.5 2 11.3V4.7zM2 4.7l6 3.3 6-3.3M8 8v6.5',
+ search:'M7 2.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM10.3 10.3l4 4',db:'M2.5 3.5c0-1.1 2.5-2 5.5-2s5.5.9 5.5 2v9c0 1.1-2.5 2-5.5 2s-5.5-.9-5.5-2zM2.5 3.5c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2',
+ wind:'M1.5 6h8.5a2 2 0 1 0-2-2M1.5 10h11a2 2 0 1 1-2 2M1.5 8h6',shield:'M8 1.5l5.5 2v4.2c0 3.3-2.3 5.7-5.5 6.8-3.2-1.1-5.5-3.5-5.5-6.8V3.5zM5.5 8l1.8 1.8L10.8 6.3',
+ code:'M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5M9 3l-2 10',cloud:'M4.5 12.5h7.5a3 3 0 0 0 .3-6A4.5 4.5 0 0 0 3.6 7.3 2.6 2.6 0 0 0 4.5 12.5z',bars:'M2 14.5h12M3.5 12V9M6.5 12V5M9.5 12V7M12.5 12V3'};
+const ICON=k=>({user:'people',ui:'monitor',ai:'laptop',orch:'cube',loc:'search',data:'db',sim:'wind',ver:'shield',d_neon:'db',d_cdpr:'db',d_wx:'cloud',d_osm:'cube',d_bd:'bars'})[k]||(k.startsWith('t_')?'code':'cube');
+const YEARS={2014:172105024,2015:191839744,2016:188559920,2017:182207488,2018:185798944,2019:186208352,2020:191382000,2021:168873728,2022:159693824,2023:153566960,2024:157260848};
+function spark(){const v=Object.values(YEARS),mx=Math.max(...v),w=100/v.length;
+  return `<svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-label="Pounds applied per year, 2014 to 2024">${v.map((x,i)=>`<rect x="${i*w+w*.18}" y="${40-x/mx*38}" width="${w*.64}" height="${x/mx*38}" rx=".6"/>`).join('')}</svg><div class="sparkcap"><span>2014</span><span>lbs applied per year · CDPR</span><span>2024</span></div>`}
 const nodeEl={};
 for(const k in N){const n=N[k];const g=mk('g',{class:'node',tabindex:0,role:'button','aria-label':n.t},gN);
   mk('rect',{x:n.x,y:n.y,width:n.w,height:n.h,rx:12},g);
-  mk('text',{x:n.x+14,y:n.y+(n.h>50?24:19)},g).textContent=n.t;
-  mk('text',{x:n.x+14,y:n.y+(n.h>50?42:34),class:'sub'},g).textContent=n.s;
+  const ig=mk('g',{transform:`translate(${n.x+12},${n.y+n.h/2-8})`},g);mk('path',{d:IC[ICON(k)],class:'ic'},ig);
+  mk('text',{x:n.x+38,y:n.y+(n.h>50?24:19)},g).textContent=n.t;
+  mk('text',{x:n.x+38,y:n.y+(n.h>50?42:34),class:'sub'},g).textContent=n.s;
   g.addEventListener('click',()=>{select(k);popOpen(k)});g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(k)}});
   nodeEl[k]=g}
 let selected='orch';
 function select(k){nodeEl[selected]?.classList.remove('sel');selected=k;nodeEl[k].classList.add('sel');const n=N[k];
   $('infoKind').textContent=n.kind;$('infoT').textContent=n.t;$('infoP').textContent=n.p;
   $('infoKV').innerHTML=Object.entries(n.kv||{}).map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
-  $('infoChips').innerHTML=(n.chips||[]).map(c=>`<span>${c}</span>`).join('')}
+  $('infoChips').innerHTML=(n.chips||[]).map(c=>`<span>${c}</span>`).join('');$('infoSpark').innerHTML=k==='d_neon'||k==='d_cdpr'?spark():''}
 function $(id){return document.getElementById(id)}
 const board=document.querySelector('.board');
 function popOpen(k){const n=N[k],r=nodeEl[k].getBoundingClientRect(),b=board.getBoundingClientRect(),pop=$('pop');
   pop.style.transformOrigin=`${r.left+r.width/2-b.left-pop.offsetLeft+pop.offsetWidth/2}px ${r.top+r.height/2-b.top-pop.offsetTop+pop.offsetHeight/2}px`;
   $('popK').textContent=n.kind;$('popT').textContent=n.t;$('popP').textContent=n.p;
   $('popKV').innerHTML=Object.entries(n.kv||{}).map(([a,v])=>`<dt>${a}</dt><dd>${v}</dd>`).join('');
-  $('popC').innerHTML=(n.chips||[]).map(c=>`<span>${c}</span>`).join('');
+  $('popC').innerHTML=(n.chips||[]).map(c=>`<span>${c}</span>`).join('');$('popSpark').innerHTML=k==='d_neon'||k==='d_cdpr'?spark():'';
   pop.classList.add('open');$('veil').classList.add('open');wasPlaying=playing;if(playing)pause()}
 let wasPlaying=false;
 function popClose(){$('pop').classList.remove('open');$('veil').classList.remove('open');if(wasPlaying){wasPlaying=false;play()}}
@@ -287,6 +332,19 @@ if(!reduce){board.classList.add('pre');
     renderStep();setTimeout(play,1500)};
   const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){io.disconnect();intro()}},{threshold:.25});io.observe(board);
 } else {renderStep();setTimeout(play,600)}
+(()=>{const c=$('sky'),x=c.getContext('2d');let W,H,stars=[],dots=[];
+ function size(){W=c.width=innerWidth*devicePixelRatio;H=c.height=innerHeight*devicePixelRatio;
+  stars=Array.from({length:220},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3*devicePixelRatio,a:Math.random()}));
+  dots=Array.from({length:520},()=>{const u=Math.random()*Math.PI*2,v=Math.acos(2*Math.random()-1);return{u,v}})}
+ function draw(t){x.clearRect(0,0,W,H);
+  stars.forEach(s=>{x.globalAlpha=.25+.55*Math.abs(Math.sin(t/2400+s.a*9));x.fillStyle='#cfefff';x.beginPath();x.arc(s.x,s.y,s.r,0,7);x.fill()});
+  const R=Math.min(W,H)*.55,cx=W*.98,cy=-R*.35;x.globalAlpha=1;
+  const g=x.createRadialGradient(cx,cy,R*.9,cx,cy,R*1.12);g.addColorStop(0,'rgba(101,219,235,.0)');g.addColorStop(.45,'rgba(101,219,235,.35)');g.addColorStop(1,'rgba(101,219,235,0)');x.fillStyle=g;x.beginPath();x.arc(cx,cy,R*1.12,0,7);x.fill();
+  const b=x.createRadialGradient(cx-R*.3,cy+R*.3,R*.1,cx,cy,R);b.addColorStop(0,'#0d3a48');b.addColorStop(1,'#04121a');x.fillStyle=b;x.beginPath();x.arc(cx,cy,R,0,7);x.fill();
+  const rot=reduce?0:t/90000;x.fillStyle='#9dff8a';
+  dots.forEach(d=>{const u=d.u+rot,px=Math.sin(d.v)*Math.cos(u),pz=Math.sin(d.v)*Math.sin(u),py=Math.cos(d.v);if(pz<0)return;x.globalAlpha=.25+.6*pz;x.beginPath();x.arc(cx+px*R,cy+py*R,1.1*devicePixelRatio,0,7);x.fill()});
+  if(!reduce)requestAnimationFrame(draw)}
+ size();addEventListener('resize',size);requestAnimationFrame(draw)})();
 })();
 </script>
 
