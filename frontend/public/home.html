@@ -17,8 +17,8 @@ body{font-family:Montserrat,system-ui,sans-serif;font-weight:300;-webkit-font-sm
 .ui{position:fixed;inset:0;pointer-events:none;padding:28px 40px;display:grid;
   grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,1fr)}
 header{display:flex;justify-content:space-between;align-items:center}
-.mark{display:flex;align-items:center;gap:10px;font-weight:500;font-size:19px;letter-spacing:.02em}
-.mark i{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 14px var(--mint),0 0 2px #fff;display:block}
+.mark{display:flex;align-items:center;font-family:Montserrat,sans-serif;font-weight:400;font-size:17px;letter-spacing:.55em;text-transform:uppercase;color:#EEE8DC}
+.mark i{display:none}
 .tag{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}
 .hero{align-self:center;max-width:620px}
 .eyebrow{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);display:flex;align-items:center;gap:10px;margin-bottom:22px}
@@ -213,7 +213,7 @@ header{pointer-events:auto}
 #tinyearth .te-hud{position:absolute;inset:0;pointer-events:none;z-index:3}
 #tinyearth .te-top{position:absolute;left:clamp(16px,3vw,40px);right:clamp(16px,3vw,40px);top:clamp(14px,2.6vh,28px);display:flex;align-items:center;gap:24px;padding-bottom:12px;border-bottom:1px solid var(--line)}
 #tinyearth .te-brand{font-weight:500;font-size:17px;letter-spacing:.01em;color:var(--ink);text-transform:none;font-family:Montserrat,sans-serif}
-#tinyearth .te-brand b{color:var(--mint);font-weight:500}
+#tinyearth .te-brand{display:inline-flex;align-items:center;font-family:Montserrat,sans-serif;font-weight:400;font-size:17px;letter-spacing:.55em;text-transform:uppercase;color:#EEE8DC;font-size:15px}#tinyearth .te-logo-dot{width:9px;height:9px;border-radius:50%;background:#7FE3A8;box-shadow:0 0 14px #7FE3A8,0 0 2px #fff;display:inline-block}
 #tinyearth .te-top .te-sep{flex:1}
 #tinyearth .te-read{display:flex;align-items:center;gap:8px;white-space:nowrap}
 #tinyearth .te-read em{font-style:normal;color:var(--ink)}
@@ -386,7 +386,7 @@ document.querySelectorAll('.places a').forEach(function(a){ a.addEventListener('
     <svg class="te-lines" aria-hidden="true"></svg>
     <div class="te-hud" aria-hidden="true">
       <div class="te-top te-mono">
-        <a class="te-brand" href="#top" onclick="event.preventDefault();window.goTop()" style="text-decoration:none;pointer-events:auto;cursor:pointer">ask<b>gaia</b></a>
+        <a class="te-brand" href="#top" onclick="event.preventDefault();window.goTop()" style="text-decoration:none;pointer-events:auto;cursor:pointer">askgaia</a>
         <span class="te-read hide-sm">Earth, understood</span>
         <span class="te-sep"></span>
         <span class="te-read hide-sm">Salinas, CA&nbsp;&nbsp;<em>36.68° N · 121.61° W</em></span>
