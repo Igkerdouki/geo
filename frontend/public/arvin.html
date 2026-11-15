@@ -727,7 +727,7 @@ addEventListener('keydown', e=>{
   if (k){ e.preventDefault(); setWind(windDeg + (e.shiftKey ? k*3 : k)); if (reduce) render(); }
 });
 document.getElementById('speed').addEventListener('input', e=>{ speed = +e.target.value; applyScenario(); if (reduce) render(); });
-document.querySelectorAll('.seg button[data-t]').forEach(b=>b.addEventListener('click', ()=>{setMode(b.dataset.t);const speed=b.dataset.t==='calm'?.2:8;if(shared)parent.postMessage({type:'gaia-release-preset',speed},location.origin);else window.dispatchEvent(new CustomEvent('gaia-release-preset',{detail:{speed}}))}));
+document.querySelectorAll('.seg button[data-t]').forEach(b=>b.addEventListener('click', ()=>{document.querySelectorAll('[data-t]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));const speed=b.dataset.t==='calm'?.2:8;if(shared)parent.postMessage({type:'gaia-release-preset',speed},location.origin);else window.dispatchEvent(new CustomEvent('gaia-release-preset',{detail:{speed}}))}));
 
 /* ---------- labels ---------- */
 const v3 = new THREE.Vector3();
