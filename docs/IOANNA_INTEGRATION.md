@@ -48,3 +48,5 @@ Live workflow `8ac3918163e147cbb40de7753bb84f14`: location, data, simulation, an
 ## Latest import
 
 Merged ioanna commit `b093865f61746094b75ef9b3af8ba24b4ad74fe3` using a three-way file merge from the prior imported commit. Preserved Gaia/backend integration while adding the no-Google-key town fallback, updated architecture and landing pages, and Devpost screenshots. Git metadata remains unchanged because it is read-only.
+
+Latest check: ioanna `25050c0fa3f648a7befbd9b2b6893c523a3f7420` adds only `docs/devpost/7-neon-spatial-query.png`; imported it. The frontend code already matches her latest source plus our integration fixes.

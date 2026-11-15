@@ -9,16 +9,17 @@ cd backend
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 # Put server credentials in backend/.env; see .env.example.
-.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
-In another terminal:
+Then start both services from one terminal:
 
 ```bash
 cd frontend
 npm ci
 npm run dev
 ```
+
+`npm run dev` starts the backend automatically, waits for it to become healthy, then starts Vite. Keep that terminal open. An already-running backend is reused. For frontend-only development use `npm run dev:frontend`.
 
 Open http://localhost:5173. Vite proxies `/api` to port 8001. The previous dashboard remains at `/explorer`.
 

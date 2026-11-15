@@ -164,11 +164,12 @@ function mergeGeometries(items) {
 
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const QS = new URLSearchParams(location.search);
+if (QS.has('lat')) document.querySelector('.deck').textContent='Loading buildings and environmental records from the backend…';
 const D = QS.has('lat')
   ? await fetch(`/api/spatial/place?lat=${encodeURIComponent(QS.get('lat'))}&lon=${encodeURIComponent(QS.get('lon'))}&name=${encodeURIComponent(QS.get('name')||'Selected place')}`).then(async r => {
       if (!r.ok) throw new Error('Town data unavailable. Please try again.');
       return r.json();
-    }).catch(e => { document.querySelector('.deck').textContent=e.message; throw e; })
+    }).catch(e => { const deck=document.querySelector('.deck'); deck.textContent='Town model could not load: '+e.message+' '; const retry=document.createElement('button');retry.textContent='Retry model';retry.style.pointerEvents='auto';retry.onclick=()=>location.reload();deck.append(retry);throw e; })
   : JSON.parse(document.getElementById('place').textContent);
 if (QS.has('lat')) {
   document.title = 'askgaia · ' + (QS.get('name') || 'Selected place');

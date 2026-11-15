@@ -1,10 +1,11 @@
 """Real-town model data on demand: OSM buildings/roads/water/POIs (OpenFreeMap tiles) + CDPR sections + SURF water sites."""
 import json
 import math
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import mapbox_vector_tile as mvt
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 
 from app.spatial_tools import _db
 
@@ -51,52 +52,59 @@ def place(lat: float = Query(..., ge=32, le=42.5), lon: float = Query(..., ge=-1
     out = {"name": name, "center": [lat, lon], "radius_m": R, "buildings": [], "roads": [], "water": [], "waterways": [],
            "landuse": [], "pois": [], "sections": [], "street_names": [], "surf": []}
     cx, cy = tile(lat, lon)
-    with httpx.Client(timeout=20) as c:
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                x, y = cx + dx, cy + dy
-                r = c.get(OFM.format(z=z, x=x, y=y))
-                if r.status_code != 200:
+    with httpx.Client(timeout=8) as c:
+        def fetch_tile(pair):
+            x,y=pair
+            try:
+                response=c.get(OFM.format(z=z,x=x,y=y))
+                return x,y,response if response.status_code==200 else None
+            except httpx.HTTPError:return x,y,None
+        pairs=[(cx+dx,cy+dy) for dx in (-1,0,1) for dy in (-1,0,1)]
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            tiles=list(pool.map(fetch_tile,pairs))
+        if not any(r is not None for _,_,r in tiles):
+            raise HTTPException(503,'Town geometry is temporarily unavailable. Retry when the map data service is reachable.')
+        for x,y,r in tiles:
+            if r is None:continue
+            d = mvt.decode(r.content, default_options={"y_coord_down": True})
+            for L, dst in (("building", "buildings"), ("water", "water"), ("landuse", "landuse"), ("landcover", "landuse")):
+                if L not in d:
                     continue
-                d = mvt.decode(r.content, default_options={"y_coord_down": True})
-                for L, dst in (("building", "buildings"), ("water", "water"), ("landuse", "landuse"), ("landcover", "landuse")):
-                    if L not in d:
-                        continue
-                    ext = d[L]["extent"]
-                    for f in d[L]["features"]:
-                        for poly in rings(f["geometry"], x, y, ext):
-                            if poly and poly[0] and inside(poly[0][0]):
-                                p = f["properties"]
-                                item = {"rings": poly}
-                                if L == "building":
-                                    item["h"] = p.get("render_height", 6)
-                                else:
-                                    item["class"], item["subclass"] = p.get("class"), p.get("subclass")
-                                out[dst].append(item)
-                if "transportation_name" in d:
-                    ext = d["transportation_name"]["extent"]
-                    for f in d["transportation_name"]["features"]:
-                        nm = f["properties"].get("name")
-                        for l in lines(f["geometry"], x, y, ext) if nm else []:
-                            if l and any(inside(p) for p in l):
-                                out["street_names"].append({"name": nm, "pts": l})
-                for L, dst in (("transportation", "roads"), ("waterway", "waterways")):
-                    if L not in d:
-                        continue
-                    ext = d[L]["extent"]
-                    for f in d[L]["features"]:
-                        for l in lines(f["geometry"], x, y, ext):
-                            if l and any(inside(p) for p in l):
-                                out[dst].append({"class": f["properties"].get("class"), "name": f["properties"].get("name"), "pts": l})
-                if "poi" in d:
-                    ext = d["poi"]["extent"]
-                    for f in d["poi"]["features"]:
-                        p, co = f["properties"], f["geometry"]["coordinates"]
-                        while isinstance(co[0], list):
-                            co = co[0]
-                        pt = loc(*ll(x, y, co[0], co[1], ext))
-                        if inside(pt) and p.get("class") in ("school", "fuel", "fire_station", "place_of_worship", "hospital", "park", "grocery", "shop", "water_tower", "drinking_water"):
-                            out["pois"].append({"class": p.get("class"), "subclass": p.get("subclass"), "name": p.get("name"), "pt": pt})
+                ext = d[L]["extent"]
+                for f in d[L]["features"]:
+                    for poly in rings(f["geometry"], x, y, ext):
+                        if poly and poly[0] and inside(poly[0][0]):
+                            p = f["properties"]
+                            item = {"rings": poly}
+                            if L == "building":
+                                item["h"] = p.get("render_height", 6)
+                            else:
+                                item["class"], item["subclass"] = p.get("class"), p.get("subclass")
+                            out[dst].append(item)
+            if "transportation_name" in d:
+                ext = d["transportation_name"]["extent"]
+                for f in d["transportation_name"]["features"]:
+                    nm = f["properties"].get("name")
+                    for l in lines(f["geometry"], x, y, ext) if nm else []:
+                        if l and any(inside(p) for p in l):
+                            out["street_names"].append({"name": nm, "pts": l})
+            for L, dst in (("transportation", "roads"), ("waterway", "waterways")):
+                if L not in d:
+                    continue
+                ext = d[L]["extent"]
+                for f in d[L]["features"]:
+                    for l in lines(f["geometry"], x, y, ext):
+                        if l and any(inside(p) for p in l):
+                            out[dst].append({"class": f["properties"].get("class"), "name": f["properties"].get("name"), "pts": l})
+            if "poi" in d:
+                ext = d["poi"]["extent"]
+                for f in d["poi"]["features"]:
+                    p, co = f["properties"], f["geometry"]["coordinates"]
+                    while isinstance(co[0], list):
+                        co = co[0]
+                    pt = loc(*ll(x, y, co[0], co[1], ext))
+                    if inside(pt) and p.get("class") in ("school", "fuel", "fire_station", "place_of_worship", "hospital", "park", "grocery", "shop", "water_tower", "drinking_water"):
+                        out["pois"].append({"class": p.get("class"), "subclass": p.get("subclass"), "name": p.get("name"), "pt": pt})
     # the nearest school is the focus; if none, the clicked point
     sch = sorted([p for p in out["pois"] if p["class"] == "school"], key=lambda p: math.hypot(*p["pt"]))
     if not sch:
