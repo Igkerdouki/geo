@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>askgaia · California</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#06120E; --ink2:#0B1C16; --bone:#EEE8DC; --bone2:#B9B3A6; --mute:#7E8A82;
+  --mint:#7FE3A8; --ember:#E8823A; --red:#C2362B; --rule:rgba(238,232,220,.14);
+  --serif:"Instrument Serif", "Fraunces", Georgia, serif;
+  --sans:"Montserrat", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--ink);color:var(--bone);height:100%;overflow:hidden}
+body{font-family:var(--sans);-webkit-font-smoothing:antialiased}
+
+.stage{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(120% 70% at 62% 30%,#e7a768 0%,#b8743f 18%,#5a3f25 38%,#1b2219 62%,#06120E 88%);}
+.stage canvas{display:block;width:100%;height:100%;position:absolute;inset:0;cursor:grab;touch-action:none}
+.stage canvas:active{cursor:grabbing}
+.stage canvas.hover{cursor:pointer}
+.grain{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(6,18,14,.62),rgba(6,18,14,0) 26%,rgba(6,18,14,0) 66%,rgba(6,18,14,.82));}
+
+.tag{position:absolute;left:0;top:0;pointer-events:none;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone);white-space:nowrap;transform:translate(-50%,-100%);padding-bottom:var(--lead,26px);opacity:0;text-shadow:0 1px 6px rgba(6,18,14,.95),0 0 12px rgba(6,18,14,.8);transition:opacity .25s}
+.tag::after{content:"";position:absolute;left:50%;bottom:4px;width:1px;height:calc(var(--lead,26px) - 6px);background:currentColor;opacity:.6}
+.tag::before{content:"";position:absolute;left:calc(50% - 2px);bottom:1px;width:5px;height:5px;border-radius:50%;background:currentColor}
+.tag.county{color:var(--bone)}
+.tag.county b{color:#ffcf9e;font-weight:500}
+
+.title{position:absolute;top:84px;left:32px;max-width:440px;pointer-events:none}
+.kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);display:flex;align-items:center;gap:12px}
+.kicker::before{content:"";width:24px;height:1px;background:var(--mint)}
+.deck{font-size:13px;line-height:1.55;color:var(--bone2);max-width:42ch;margin-top:12px}
+.deck strong{color:var(--bone);font-weight:500}
+
+.overlay-top{position:absolute;top:30px;right:32px;text-align:right;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone2);line-height:1.9;pointer-events:none}
+.overlay-top b{color:var(--bone);font-weight:500}
+.live{display:inline-flex;align-items:center;gap:8px;color:var(--mint)}
+.live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 0 rgba(127,227,168,.6);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,227,168,.5)}70%{box-shadow:0 0 0 9px rgba(127,227,168,0)}100%{box-shadow:0 0 0 0 rgba(127,227,168,0)}}
+
+.panel{position:absolute;right:28px;bottom:28px;display:flex;align-items:flex-end;gap:22px}
+.readout{background:rgba(6,18,14,.74);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--rule);border-radius:4px;padding:14px 16px;width:330px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--bone2)}
+.readout .row{display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px solid rgba(238,232,220,.07)}
+.readout .row:last-child{border-bottom:0}
+.readout b{color:var(--bone);font-weight:500;text-align:right;white-space:nowrap}
+.readout .row span{white-space:nowrap}
+.readout b.hot{color:var(--ember)} .readout b.ok{color:var(--mint)}
+.compass:focus-visible{outline:2px solid var(--mint);outline-offset:3px}
+.compass-wrap{text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--bone2);text-transform:uppercase}
+.compass{width:118px;height:118px;display:block;margin:0 auto 8px;cursor:grab;touch-action:none;border-radius:50%;background:rgba(6,18,14,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.compass:active{cursor:grabbing}
+
+.legend{position:absolute;left:32px;bottom:28px;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone2);display:flex;flex-direction:column;gap:9px;pointer-events:none}
+.legend .items{display:flex;flex-wrap:wrap;gap:16px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend .hint{color:var(--mute);letter-spacing:.08em;text-transform:none;font-size:10px}
+.legend .ramp{display:flex;align-items:center;gap:8px;letter-spacing:.1em}
+.legend .ramp i{width:120px;height:6px;border-radius:1px;background:linear-gradient(90deg,#b3ad8c,#5d7a31 18%,#9a913c 36%,#d9a441 54%,#E8823A 70%,#C2362B 86%,#7d1d19)}
+.sw{width:14px;height:8px;display:inline-block;border-radius:1px}
+.sw.rec{border:1px dashed rgba(238,232,220,.7);height:9px}
+.sw.mod{background:linear-gradient(90deg,#ffc773,var(--ember),var(--red))}
+.sw.unm{background:repeating-linear-gradient(45deg,rgba(238,232,220,.55) 0 1.5px,transparent 1.5px 4px);outline:1px solid rgba(238,232,220,.3)}
+
+.tip{position:absolute;left:0;top:0;pointer-events:none;background:rgba(6,18,14,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--rule);border-radius:4px;padding:10px 12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--bone2);white-space:nowrap;opacity:0;transform:translate(14px,-50%);transition:opacity .15s;z-index:5}
+.tip.on{opacity:1}
+.tip .c{color:var(--bone);text-transform:uppercase;letter-spacing:.14em;font-size:10px;margin-bottom:6px}
+.tip .r{display:flex;justify-content:space-between;gap:18px;padding:2px 0}
+.tip .r b{color:var(--bone);font-weight:500}
+.tip .r b.hot{color:var(--ember)}
+.tip .go{margin-top:7px;color:var(--mint);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
+
+.msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--bone2);background:rgba(6,18,14,.8);border:1px solid var(--rule);border-radius:4px;padding:12px 16px;display:none}
+.msg.on{display:block}
+
+@media (max-width:820px){
+  .title{left:16px;top:18px;right:16px;max-width:none}
+  .deck{font-size:12px}
+  .overlay-top{display:none}
+  .legend{display:none}
+  .panel{left:16px;right:16px;bottom:16px;flex-direction:row;align-items:flex-end;justify-content:space-between;gap:10px}
+  .readout{width:auto;flex:1;min-width:0;padding:10px 12px;font-size:10px}
+  .compass{width:84px;height:84px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head><body>
+
+<main class="stage" id="stage" aria-label="Interactive 3D model of California farmland, where each raised tile shows pounds of pesticide applied 2020 to 2024, with a modelled wind drift haze">
+  <div class="grain"></div>
+  <div id="labels"></div>
+
+  <div class="title">
+    <p class="kicker">California · 2020–2024</p>
+    <p class="deck">Every tile is about <strong>8 km of real farmland</strong>; height and colour are <strong>pounds of pesticide applied</strong> (CDPR)</p>
+  </div>
+
+  <div class="overlay-top">
+    <div class="live">Statewide view</div>
+    <div>CDPR Pesticide Use Reports · <b>2020–2024</b></div>
+    <div>Drift haze · <span id="hWind">modelled</span></div>
+  </div>
+
+  <div class="legend">
+    <div class="ramp"><span>Fewer lbs</span><i></i><span>More lbs</span></div>
+    <div class="items"><span><i class="sw rec"></i>Recorded: CDPR Pesticide Use Reports</span><span><i class="sw mod"></i>Modelled: drift haze</span><span><i class="sw unm"></i>Not measured exposure</span></div>
+    <div class="hint">Drag to orbit · wheel to zoom · hover a tile · arrow keys turn the wind</div>
+  </div>
+
+  <div class="panel">
+    <div class="readout" aria-live="polite">
+      <div class="row"><span>Cells shown</span><b id="rCells">—</b></div>
+      <div class="row"><span>Mapped cells · 2020–24</span><b>~0.75 B lbs</b></div>
+      <div class="row"><span>Top county</span><b id="rTop" class="hot">—</b></div>
+      <div class="row"><span>Wind from</span><b id="rWind">—</b></div>
+    </div>
+    <div class="compass-wrap">
+      <svg class="compass" id="compass" viewBox="-60 -60 120 120" tabindex="0" role="slider" aria-label="Wind direction. Drag or use arrow keys." aria-valuemin="0" aria-valuemax="359" aria-valuenow="0">
+        <circle r="56" fill="none" stroke="rgba(238,232,220,.18)"/>
+        <circle r="40" fill="none" stroke="rgba(238,232,220,.08)"/>
+        <g id="rose"></g>
+        <g id="needle">
+          <line x1="0" y1="30" x2="0" y2="-34" stroke="#E8823A" stroke-width="1.4"/>
+          <path d="M0 -44 L6 -31 L0 -34 L-6 -31 Z" fill="#E8823A"/>
+          <circle cy="30" r="3" fill="none" stroke="#E8823A" stroke-width="1.2"/>
+        </g>
+        <circle r="2.2" fill="#EEE8DC"/>
+      </svg>
+      Drag · wind
+    </div>
+  </div>
+
+  <div class="tip" id="tip" role="status"></div>
+  <div class="msg" id="msg"></div>
+</main>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stage = document.getElementById('stage');
+const labelsEl = document.getElementById('labels');
+const msgEl = document.getElementById('msg');
+const tipEl = document.getElementById('tip');
+const showMsg = t => { msgEl.textContent = t; msgEl.classList.add('on'); };
+
+/* ---------- data ---------- */
+let cells = [], counties = [];
+try {
+  const [g, c] = await Promise.all([
+    fetch('/api/spatial/grid?cell_deg=0.08').then(r => { if (!r.ok) throw new Error('grid ' + r.status); return r.json(); }),
+    fetch('/api/spatial/counties').then(r => { if (!r.ok) throw new Error('counties ' + r.status); return r.json(); }),
+  ]);
+  cells = (g.cells || []).filter(c => isFinite(c.lat) && isFinite(c.lon));
+  counties = c.counties || [];
+} catch (e) {
+  showMsg('Could not load the statewide pesticide data. Try again in a moment.');
+}
+if (cells.length) {
+  if (!counties.length) showMsg('County totals unavailable; showing tiles only.');
+} else if (!msgEl.classList.contains('on')) showMsg('No pesticide data returned.');
+
+/* ---------- projection: equirectangular, cos(36.5°), 1 unit ≈ 10 km ---------- */
+const LAT0 = 37.28, LON0 = -119.36, DEG = 0.08;
+const KX = Math.cos(36.5*Math.PI/180) * 111.32 / 10, KZ = 110.57 / 10;
+const px = lon => (lon - LON0) * KX, pz = lat => -(lat - LAT0) * KZ;
+const CW = DEG*KX, CD = DEG*KZ, GAP = .1, HMAX = 4.6;
+
+const fmt = n => n >= 1e9 ? (n/1e9).toFixed(2)+' B' : n >= 1e8 ? Math.round(n/1e6)+' M' : n >= 1e6 ? (n/1e6).toFixed(1)+' M' : n >= 1e3 ? Math.round(n/1e3)+'k' : Math.round(n)+'';
+
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+/* ---------- renderer / scene ---------- */
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x6e4a2b, 140, 360);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 1200);
+
+const hemi = new THREE.HemisphereLight(0xf6dcb4, 0x0d2018, 1.1);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffc48a, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+Object.assign(sun.shadow.camera, {left:-80,right:80,top:80,bottom:-80,near:1,far:400});
+sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
+sun.position.set(-95, 48, 40); sun.target.position.set(0,0,0);
+scene.add(sun, sun.target);
+const fill = new THREE.DirectionalLight(0x7fb0a0, 0.25);
+fill.position.set(60, 40, -70); scene.add(fill);
+
+/* ---------- ground ---------- */
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({color:0x3a3522, roughness:1}));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+
+/* ---------- tiles ---------- */
+const maxLbs = Math.max(1, ...cells.map(c => c.lbs || 0));
+const stops = [[0,0x5d7a31],[.16,0x6e7a35],[.3,0x9a913c],[.44,0xd9a441],[.6,0xE8823A],[.78,0xC2362B],[1,0x7d1d19]].map(([t,h])=>[t,new THREE.Color(h)]);
+function ramp(t, out){
+  for (let i=1;i<stops.length;i++) if (t <= stops[i][0]){ const a=stops[i-1], b=stops[i]; return out.copy(a[1]).lerp(b[1], (t-a[0])/(b[0]-a[0])); }
+  return out.copy(stops[stops.length-1][1]);
+}
+const PALE = [0xb3ad8c, 0xa9a684, 0xbcb391, 0xa7a07e].map(h=>new THREE.Color(h));
+const tileMat = new THREE.MeshStandardMaterial({roughness:.92});
+const tileMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1), tileMat, Math.max(cells.length,1));
+tileMesh.count = cells.length;
+tileMesh.castShadow = true; tileMesh.receiveShadow = true;
+const m4 = new THREE.Matrix4(), qI = new THREE.Quaternion(), col = new THREE.Color();
+const baseCols = [];
+cells.forEach((c,i)=>{
+  const t = Math.sqrt((c.lbs||0)/maxLbs);
+  let h;
+  if (c.lbs < 20000){ h = .05 + (c.lbs/20000)*.07; col.copy(PALE[Math.floor(rnd()*PALE.length)]).offsetHSL(0,0,(rnd()-.5)*.03); }
+  else { h = .14 + t*HMAX; ramp(t, col).offsetHSL((rnd()-.5)*.01,0,(rnd()-.5)*.035); }
+  c.x = px(c.lon); c.z = pz(c.lat); c.h = h;
+  m4.compose(new THREE.Vector3(c.x, h/2, c.z), qI, new THREE.Vector3(CW-GAP, h, CD-GAP));
+  tileMesh.setMatrixAt(i, m4); tileMesh.setColorAt(i, col); baseCols.push(col.clone());
+});
+if (cells.length){ tileMesh.instanceMatrix.needsUpdate = true; tileMesh.instanceColor.needsUpdate = true; tileMesh.computeBoundingSphere(); }
+scene.add(tileMesh);
+
+/* ---------- ocean + coastline from westernmost cells per latitude band ---------- */
+if (cells.length){
+  const band = new Map();
+  cells.forEach(c=>{ const k = Math.round(c.lat/DEG); band.set(k, Math.min(band.get(k) ?? Infinity, c.lon)); });
+  const keys = [...band.keys()], k0 = Math.min(...keys), k1 = Math.max(...keys);
+  let raw = [];
+  for (let k=k0;k<=k1;k++) raw.push(band.has(k) ? band.get(k) : null);
+  for (let i=0;i<raw.length;i++) if (raw[i]===null){ let a=i-1,b=i+1; while(b<raw.length && raw[b]===null) b++; raw[i] = b<raw.length ? (a>=0 ? (raw[a]+raw[b])/2 : raw[b]) : raw[a]; }
+  const mn = raw.map((_,i)=>Math.min(...raw.slice(Math.max(0,i-2), i+3)));
+  const sm = mn.map((_,i)=>{ const s = mn.slice(Math.max(0,i-3), i+4); return s.reduce((a,b)=>a+b,0)/s.length; });
+  const coast = sm.map((lon,i)=>new THREE.Vector2(px(lon - DEG*.75), pz((k0+i)*DEG))).reverse(); // north → south
+  const north = coast[0], south = coast[coast.length-1];
+  const pts = [new THREE.Vector2(north.x-6, -400), ...coast, new THREE.Vector2(south.x+4, 400), new THREE.Vector2(-500, 400), new THREE.Vector2(-500, -400)];
+  const shape = new THREE.Shape(pts.map(p=>new THREE.Vector2(p.x, -p.y)));
+  const oGeo = new THREE.ShapeGeometry(shape); oGeo.rotateX(-Math.PI/2);
+  const ocean = new THREE.Mesh(oGeo, new THREE.MeshStandardMaterial({color:0x1c3534, roughness:.32, metalness:.15}));
+  ocean.position.y = .012; ocean.receiveShadow = true; scene.add(ocean);
+
+  // soft coastline glow: ribbon fading on both sides
+  const rp = [], rs = [], idx = [];
+  const line = [new THREE.Vector2(north.x-6, north.y-60), ...coast, new THREE.Vector2(south.x+4, south.y+60)];
+  line.forEach((p,i)=>{
+    const a = line[Math.max(0,i-1)], b = line[Math.min(line.length-1,i+1)];
+    const tx = b.x-a.x, tz = b.y-a.y, L = Math.hypot(tx,tz)||1, nx = -tz/L, nz = tx/L, w = 1.6;
+    rp.push(p.x+nx*w, .03, p.y+nz*w, p.x-nx*w, .03, p.y-nz*w); rs.push(1, -1);
+    if (i) { const o = (i-1)*2; idx.push(o, o+1, o+2, o+1, o+3, o+2); }
+  });
+  const rg = new THREE.BufferGeometry();
+  rg.setAttribute('position', new THREE.Float32BufferAttribute(rp,3)); rg.setAttribute('aS', new THREE.Float32BufferAttribute(rs,1)); rg.setIndex(idx);
+  const glow = new THREE.Mesh(rg, new THREE.ShaderMaterial({transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
+    vertexShader:`attribute float aS; varying float vS; void main(){ vS=aS; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader:`varying float vS; void main(){ float a = pow(1.-abs(vS), 2.2); gl_FragColor = vec4(vec3(1.,.78,.5)*a*.42, 1.); }`}));
+  glow.renderOrder = 1; scene.add(glow);
+}
+
+/* ---------- drift haze (orange→red Gaussian plumes from top hotspots) ---------- */
+const NS = 36;
+const hot = [...cells].sort((a,b)=>b.lbs-a.lbs).slice(0, NS);
+const srcArr = Array.from({length:NS}, (_,i)=> hot[i] ? new THREE.Vector3(hot[i].x, hot[i].z, Math.sqrt(hot[i].lbs/maxLbs)) : new THREE.Vector3(0,0,0));
+const U = {uSrc:{value:srcArr}, uDir:{value:new THREE.Vector2(1,0)}, uTime:{value:0}, uFront:{value:reduce?40:4}};
+const hazeVS = `varying vec2 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xz; gl_Position = projectionMatrix*viewMatrix*w; }`;
+const hazeFS = `
+#define NS ${NS}
+uniform vec3 uSrc[NS]; uniform vec2 uDir; uniform float uTime; uniform float uFront; uniform float uLayer; uniform float uAlpha;
+varying vec2 vW;
+float h(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+float fbm(vec2 p){ float v=0., a=.5; for(int i=0;i<3;i++){ v+=a*n(p); p*=2.03; a*=.5; } return v; }
+void main(){
+  vec2 nrm = vec2(-uDir.y,uDir.x); float s = 0.;
+  for (int i=0;i<NS;i++){
+    vec3 S = uSrc[i]; if (S.z <= 0.) continue;
+    vec2 d = vW - S.xy; float x = dot(d,uDir), y = dot(d,nrm);
+    if (x < -2.5) continue;
+    float xp = max(x,0.);
+    float sig = .55 + .17*xp*(1.-.2*uLayer);
+    float start = smoothstep(-1.4, .9, x + .8*uLayer);
+    float front = 1. - smoothstep(uFront-6., uFront, x);
+    s += S.z * exp(-y*y/(2.*sig*sig)) / (1. + .085*xp) * start * front;
+  }
+  float tex = fbm(vW*.16 - uDir*uTime*.32 + uLayer*3.1);
+  float c = (1. - exp(-s*1.3)) * (.6 + .7*tex);
+  vec3 ember = vec3(.91,.51,.23), red = vec3(.76,.21,.17), gold = vec3(1.,.78,.45);
+  vec3 colr = mix(gold, ember, smoothstep(.05,.35,c)); colr = mix(colr, red, smoothstep(.5,1.,c));
+  float a = smoothstep(.04,.9,c) * .72 * uAlpha;
+  if (a < .004) discard;
+  gl_FragColor = vec4(colr, a);
+}`;
+const hazes = [];
+if (cells.length) [[0,.7,1.],[1,2.2,.55],[2,3.9,.3]].forEach(([layer,y,alpha])=>{
+  const mat = new THREE.ShaderMaterial({vertexShader:hazeVS, fragmentShader:hazeFS, transparent:true, depthWrite:false, fog:false,
+    uniforms:{...U, uLayer:{value:layer}, uAlpha:{value:alpha}}});
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(220,220), mat);
+  p.rotation.x = -Math.PI/2; p.position.set(0, y, 0); p.renderOrder = 2 + layer; scene.add(p); hazes.push(p);
+});
+
+/* ---------- wind streaks across the state ---------- */
+const N = reduce ? 360 : 1000, CX = 0, CZ = 0, HX = 56, HZ = 62;
+const sPos = new Float32Array(N*6), sState = [];
+for (let i=0;i<N;i++) sState.push({x:CX+(rnd()-.5)*2*HX, z:CZ+(rnd()-.5)*2*HZ, y:1+rnd()*8, s:.6+rnd()*.8, l:1.2+rnd()*2});
+const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3));
+const streaks = new THREE.LineSegments(sGeo, new THREE.LineBasicMaterial({color:0xf5ead6, transparent:true, opacity:.3, depthWrite:false}));
+streaks.renderOrder = 6; scene.add(streaks);
+
+/* ---------- county labels (top 8) ---------- */
+const tags = [];
+function addTag(cls, html, pos, lead){ const el=document.createElement('div'); el.className=cls; el.innerHTML=html; el.style.setProperty('--lead', lead+'px'); labelsEl.appendChild(el); tags.push({el, p:pos, lead}); return el; }
+const topCounties = counties.slice(0, 8);
+topCounties.forEach((k,i)=>{
+  const own = cells.filter(c => c.county === k.name);
+  const peak = own.length ? own.reduce((a,b)=>b.lbs>a.lbs?b:a) : null;
+  const pos = peak ? new THREE.Vector3(peak.x, peak.h + .05, peak.z) : new THREE.Vector3(px(k.lon), .2, pz(k.lat));
+  addTag('tag county', `${k.name} · <b>${fmt(k.lbs)} lbs</b>`, pos, 40 + (i%3)*36);
+});
+
+/* ---------- camera / controls ---------- */
+const target = new THREE.Vector3(2, 0, 4);
+camera.position.copy(target).add(new THREE.Vector3(-82, 108, 62));
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(target);
+Object.assign(controls, {enableDamping:!reduce, dampingFactor:.08, minDistance:12, maxDistance:260, maxPolarAngle:1.38, minPolarAngle:.12, zoomSpeed:.9, rotateSpeed:.6, panSpeed:.8});
+controls.update();
+controls.addEventListener('change', ()=>{ if (reduce) render(); });
+
+/* ---------- readout ---------- */
+document.getElementById('rCells').textContent = cells.length ? cells.length.toLocaleString('en-US') : '—';
+if (counties[0]) document.getElementById('rTop').textContent = `${counties[0].name} · ${fmt(counties[0].lbs)} lbs`;
+
+/* ---------- wind ---------- */
+const dirVec = new THREE.Vector2();
+let camYaw = 0;
+let LIVEW = null;
+let windDeg = 135;           // heading; blowing toward SE = wind from the NW
+const pts16 = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+function setWind(deg){
+  windDeg = ((deg % 360) + 360) % 360;
+  const r = windDeg*Math.PI/180;
+  dirVec.set(Math.sin(r), -Math.cos(r));
+  hazes.forEach(p=>p.material.uniforms.uDir.value.copy(dirVec));
+  document.getElementById('needle').setAttribute('transform', `rotate(${windDeg - camYaw})`);
+  document.getElementById('compass').setAttribute('aria-valuenow', Math.round(windDeg));
+  const from = pts16[Math.round(((windDeg+180)%360)/22.5)%16];
+  const live = LIVEW && Math.abs(((LIVEW.from + 180) % 360) - windDeg) < .5;
+  document.getElementById('rWind').textContent = live ? `${from} · ${LIVEW.sp.toFixed(1)} m/s · live` : `${from} · statewide`;
+  document.getElementById('hWind').textContent = live ? `live wind from ${from} · Central Valley` : `wind from ${from}`;
+  if (reduce && typeof drawStatic === 'function') drawStatic();
+}
+
+/* compass rose */
+const rose = document.getElementById('rose');
+let roseSVG = '';
+for (let i=0;i<72;i++){
+  const a = i*5, major = i%18===0, mid = i%6===0;
+  roseSVG += `<line x1="0" y1="-56" x2="0" y2="${major?-48:mid?-51:-53.5}" stroke="rgba(238,232,220,${major?.8:.3})" stroke-width="${major?1.2:.7}" transform="rotate(${a})"/>`;
+}
+['N','E','S','W'].forEach((t,i)=>{
+  const a = (i*90)*Math.PI/180, r = 39;
+  roseSVG += `<text x="${Math.sin(a)*r}" y="${-Math.cos(a)*r+3}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="${t==='N'?'#7FE3A8':'rgba(238,232,220,.6)'}">${t}</text>`;
+});
+rose.innerHTML = roseSVG;
+function syncYaw(){
+  const f = new THREE.Vector3().subVectors(controls.target, camera.position);
+  const y = Math.atan2(f.x, -f.z) * 180/Math.PI;
+  if (Math.abs(y - camYaw) < .05) return;
+  camYaw = y;
+  rose.setAttribute('transform', `rotate(${-camYaw})`);
+  document.getElementById('needle').setAttribute('transform', `rotate(${windDeg - camYaw})`);
+}
+const compass = document.getElementById('compass');
+let dragging = false;
+function fromPointer(e){
+  const b = compass.getBoundingClientRect();
+  const dx = e.clientX - (b.left + b.width/2), dy = e.clientY - (b.top + b.height/2);
+  setWind(Math.atan2(dx, -dy)*180/Math.PI + camYaw);
+  if (reduce) render();
+}
+compass.addEventListener('pointerdown', e=>{ dragging = true; compass.setPointerCapture(e.pointerId); fromPointer(e); });
+compass.addEventListener('pointermove', e=>{ if (dragging) fromPointer(e); });
+compass.addEventListener('pointerup', ()=> dragging = false);
+compass.addEventListener('pointercancel', ()=> dragging = false);
+addEventListener('keydown', e=>{
+  const k = {ArrowLeft:-5, ArrowDown:-5, ArrowRight:5, ArrowUp:5}[e.key];
+  if (k){ e.preventDefault(); setWind(windDeg + (e.shiftKey ? k*3 : k)); if (reduce) render(); }
+});
+
+/* ---------- hover + click to fly ---------- */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let hoverId = -1, mouseXY = null, needPick = false, downXY = null;
+const HILITE = new THREE.Color(0xfff1d6);
+function setHover(id){
+  if (id === hoverId) return;
+  if (hoverId >= 0) tileMesh.setColorAt(hoverId, baseCols[hoverId]);
+  hoverId = id;
+  if (id >= 0) tileMesh.setColorAt(id, col.copy(baseCols[id]).lerp(HILITE, .55));
+  if (tileMesh.instanceColor) tileMesh.instanceColor.needsUpdate = true;
+  renderer.domElement.classList.toggle('hover', id >= 0);
+  if (id < 0){ tipEl.classList.remove('on'); return; }
+  const c = cells[id], fp = c.lbs ? Math.round(100*(c.fumigant_lbs||0)/c.lbs) : 0;
+  tipEl.innerHTML = `<div class="c">${c.county || 'Unknown'} County</div>
+    <div class="r"><span>Applied 2020–24</span><b class="hot">${fmt(c.lbs)} lbs</b></div>
+    <div class="r"><span>Fumigants</span><b>${fp}%</b></div>
+    <div class="go">Click to fly in →</div>`;
+  tipEl.classList.add('on');
+}
+function pick(){
+  needPick = false;
+  if (!mouseXY || !cells.length) return setHover(-1);
+  const b = renderer.domElement.getBoundingClientRect();
+  mouse.set((mouseXY[0]-b.left)/b.width*2-1, -((mouseXY[1]-b.top)/b.height)*2+1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObject(tileMesh, false)[0];
+  setHover(hit ? hit.instanceId : -1);
+  if (hoverId >= 0){
+    const tw = tipEl.offsetWidth, x = mouseXY[0] + tw + 30 > innerWidth ? mouseXY[0] - tw - 28 : mouseXY[0];
+    tipEl.style.left = x + 'px'; tipEl.style.top = mouseXY[1] + 'px';
+  }
+}
+const cv = renderer.domElement;
+cv.addEventListener('pointermove', e=>{ mouseXY = [e.clientX, e.clientY]; if (e.buttons) { setHover(-1); return; } needPick = true; if (reduce){ pick(); render(); } });
+cv.addEventListener('pointerleave', ()=>{ mouseXY = null; setHover(-1); if (reduce) render(); });
+cv.addEventListener('pointerdown', e=>{ downXY = [e.clientX, e.clientY]; });
+cv.addEventListener('pointerup', e=>{
+  if (!downXY || Math.hypot(e.clientX-downXY[0], e.clientY-downXY[1]) > 5) return;
+  mouseXY = [e.clientX, e.clientY]; pick();
+  if (hoverId < 0) return;
+  const c = cells[hoverId];
+  parent.postMessage({type:'askgaia-fly', lat:c.hot_lat, lon:c.hot_lon, county:c.county, lbs:c.lbs, fumigant_lbs:c.fumigant_lbs}, location.origin);
+});
+
+/* ---------- labels ---------- */
+const v3 = new THREE.Vector3();
+function placeTags(w, h){
+  const placed = [];
+  tags.forEach(t=>{
+    v3.copy(t.p).project(camera);
+    let vis = v3.z < 1 && Math.abs(v3.x) < .96 && v3.y < .92 && v3.y > -.96;
+    const sx = (v3.x+1)/2*w, sy = (1-v3.y)/2*h;
+    const bw = t.el.offsetWidth || 120, bh = 14, top = sy - t.lead - bh;
+    if (vis) vis = !blockers.some(b => sx+bw/2 > b.left-8 && sx-bw/2 < b.right+8 && top < b.bottom+8 && sy > b.top-8);
+    if (vis) { const box = {l:sx-bw/2-6, r:sx+bw/2+6, t:top-4, b:top+bh+4};
+      if (placed.some(q => box.l<q.r && box.r>q.l && box.t<q.b && box.b>q.t)) vis = false; else placed.push(box); }
+    t.el.style.opacity = vis ? 1 : 0;
+    t.el.style.left = sx + 'px'; t.el.style.top = sy + 'px';
+  });
+}
+
+/* ---------- resize ---------- */
+let W = 1, H = 1, blockers = [];
+function resize(){
+  blockers = ['.title','.panel','.legend','.overlay-top'].map(s=>document.querySelector(s)).filter(e=>e && e.offsetParent!==null).map(e=>e.getBoundingClientRect());
+  W = stage.clientWidth; H = stage.clientHeight;
+  renderer.setSize(W, H, false);
+  camera.aspect = W/H;
+  camera.fov = W/H < .8 ? 52 : 34;
+  camera.updateProjectionMatrix();
+  if (reduce) render();
+}
+new ResizeObserver(resize).observe(stage);
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+let t = 0;
+function render(){
+  hazes.forEach(p=>{ p.material.uniforms.uTime.value = t; p.material.uniforms.uFront.value = U.uFront.value; });
+  syncYaw();
+  placeTags(W, H);
+  renderer.render(scene, camera);
+}
+function frame(){
+  const dt = Math.min(clock.getDelta(), .05);
+  t += dt;
+  U.uFront.value = Math.min(U.uFront.value + dt*7, 40);
+  const v = 5.5;
+  for (let i=0;i<N;i++){
+    const s = sState[i];
+    s.x += dirVec.x*s.s*dt*v; s.z += dirVec.y*s.s*dt*v;
+    if (Math.abs(s.x-CX) > HX || Math.abs(s.z-CZ) > HZ){
+      s.x = CX - dirVec.x*(HX-1) + (rnd()-.5)*2*HX*Math.abs(dirVec.y) + (rnd()-.5)*8;
+      s.z = CZ - dirVec.y*(HZ-1) + (rnd()-.5)*2*HZ*Math.abs(dirVec.x) + (rnd()-.5)*8;
+    }
+    const o = i*6;
+    sPos[o]=s.x; sPos[o+1]=s.y; sPos[o+2]=s.z;
+    sPos[o+3]=s.x - dirVec.x*s.l; sPos[o+4]=s.y; sPos[o+5]=s.z - dirVec.y*s.l;
+  }
+  sGeo.attributes.position.needsUpdate = true;
+  controls.update();
+  if (needPick) pick();
+  render();
+  requestAnimationFrame(frame);
+}
+
+setWind(windDeg);
+// real wind right now over the Central Valley (Fresno, Open-Meteo 10 m)
+fetch('https://api.open-meteo.com/v1/forecast?latitude=36.74&longitude=-119.79&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms')
+  .then(r => r.json()).then(j => { const c = j.current; if (!c) return;
+    LIVEW = { from: +c.wind_direction_10m, sp: +c.wind_speed_10m };
+    setWind(LIVEW.from + 180); if (reduce) render(); }).catch(() => {});
+resize();
+function drawStatic(){
+  for (let i=0;i<N;i++){ const s=sState[i], o=i*6; sPos.set([s.x,s.y,s.z,s.x-dirVec.x*s.l,s.y,s.z-dirVec.y*s.l], o); }
+  sGeo.attributes.position.needsUpdate = true;
+}
+if (reduce){ drawStatic(); render(); } else requestAnimationFrame(frame);
+</script>
+
+</body></html>

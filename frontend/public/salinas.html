@@ -52,7 +52,7 @@ h1 em{font-style:italic;color:var(--bone2)}
 .ctl input::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--bone);border:0}
 .ctl input:focus-visible{outline:2px solid var(--mint);outline-offset:6px}
 .ctl output{flex:none;width:52px;text-align:right;color:var(--bone)}
-.seg{display:grid;grid-template-columns:1fr 1fr;margin-top:8px;border:1px solid var(--rule);border-radius:999px;padding:2px}
+.seg{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:8px;border:1px solid var(--rule);border-radius:999px;padding:2px}
 .seg button{font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--bone2);background:transparent;border:0;border-radius:999px;padding:7px 4px;cursor:pointer;transition:background .2s,color .2s}
 .seg button[aria-pressed="true"]{background:var(--bone);color:var(--ink)}
 .seg button:focus-visible,.compass:focus-visible{outline:2px solid var(--mint);outline-offset:3px}
@@ -104,7 +104,7 @@ h1 em{font-style:italic;color:var(--bone2)}
   </div>
 
   <div class="overlay-top">
-    <div class="live">Modelled scenario</div>
+    <div class="live" id="hLive">Modelled scenario</div>
     <div>Application · <b id="hTime">06:40</b> · <span id="hSky">Golden hour</span></div>
     <div id="hSec">Sec 15 · T13S R18E</div>
   </div>
@@ -122,6 +122,7 @@ h1 em{font-style:italic;color:var(--bone2)}
       <div class="row"><span>Air</span><b id="rAir">Stable · inversion</b></div>
       <div class="ctl"><label for="speed">Wind</label><input id="speed" type="range" min="0.5" max="9" step="0.1" value="1.6"><output id="rSpeed" for="speed">1.6 m/s</output></div>
       <div class="seg" role="group" aria-label="Time of day">
+        <button type="button" data-t="live" aria-pressed="false">Live · now</button>
         <button type="button" data-t="calm" aria-pressed="true">06:40 · calm</button>
         <button type="button" data-t="windy" aria-pressed="false">14:00 · windy</button>
       </div>
@@ -568,15 +569,36 @@ function applyScenario(){
   const sp = document.getElementById('speed'); sp.style.setProperty('--p', ((speed-.5)/8.5*100)+'%');
   document.getElementById('rSpeed').textContent = speed.toFixed(1)+' m/s';
 }
+/* live: real wind right now at this town (Open-Meteo, 10 m) */
+let LIVE = null;
+async function fetchLive(){
+  const [la, lo] = D.center || [];
+  if (la == null) return null;
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=wind_speed_10m,wind_direction_10m,is_day,cloud_cover&wind_speed_unit=ms&timezone=auto`);
+    const c = (await r.json()).current; if (!c) return null;
+    const sp = Math.max(.5, +c.wind_speed_10m), day = !!c.is_day, cloud = c.cloud_cover ?? 50;
+    // Pasquill-style stability from wind speed, daylight and cloud
+    const cls = day ? (sp < 2 ? 'A' : sp < 3 ? 'B' : sp < 5 ? 'C' : 'D') : (sp < 3 && cloud < 50 ? 'F' : sp < 3 ? 'E' : 'D');
+    const STAB = {A:[.24,.08,.7,'Very unstable · mixing'],B:[.2,.07,.78,'Unstable · mixing'],C:[.15,.065,.9,'Slightly unstable'],D:[.11,.06,1,'Neutral'],E:[.09,.055,1.1,'Stable'],F:[.075,.05,1.2,'Stable · inversion']}[cls];
+    const base = day ? MODES.windy : MODES.calm;
+    LIVE = {...base, speed:sp, spread:STAB[0], decay:STAB[1], stab:STAB[2], air:`${STAB[3]} · class ${cls}`,
+      time:c.time.slice(11,16), sky: day ? 'Live · daylight' : 'Live · night', from:+c.wind_direction_10m};
+    MODES.live = LIVE; return LIVE;
+  } catch { return null; }
+}
 function setMode(m){
+  if (m === 'live' && !MODES.live){ fetchLive().then(L => L ? setMode('live') : null); return; }
+  document.getElementById('hLive').textContent = m === 'live' ? 'Live wind · Open-Meteo' : 'Modelled scenario';
   mode = m; const M = MODES[m]; speed = M.speed; document.getElementById('speed').value = speed;
   document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.t===m));
   document.getElementById('rAir').textContent = M.air;
   document.getElementById('hTime').textContent = M.time; document.getElementById('hSky').textContent = M.sky;
   sun.position.copy(target).add(new THREE.Vector3(...M.sunOff)); sun.target.position.copy(target);
   sun.color.setHex(M.sunCol); sun.intensity = M.sunI; hemi.intensity = M.hemiI; scene.fog.color.setHex(M.fog);
-  stage.classList.toggle('noon', m==='windy');
-  applyScenario(); if (reduce) render();
+  stage.classList.toggle('noon', m==='windy' || (m==='live' && M.sky.includes('day')));
+  if (m === 'live') setWind(M.from + 180); else applyScenario();
+  if (reduce) render();
 }
 function setWind(deg){
   windDeg = ((deg % 360) + 360) % 360;
@@ -722,6 +744,7 @@ function frame(){
 
 setMode('calm');
 setWind(windDeg);
+fetchLive().then(L => { if (L) setMode('live'); });
 resize();
 if (reduce){
   for (let i=0;i<N;i++){ const s=sState[i], o=i*6; sPos.set([s.x,s.y,s.z,s.x-dirVec.x*s.l,s.y,s.z-dirVec.y*s.l], o); }

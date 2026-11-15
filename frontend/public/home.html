@@ -67,11 +67,13 @@ footer{display:flex;flex-direction:column;align-items:center;gap:16px}
   .search input{font-size:15px}
   .search button{height:38px;padding:0 14px}
 }
-html,body{height:auto;overflow-x:hidden;overflow-y:auto}
+html{height:auto;overflow-x:hidden}
+body{height:auto;overflow:visible}
 .ui{position:relative;height:100vh;min-height:620px}
 .scrollcue{position:absolute;left:50%;top:calc(100vh - 26px);transform:translateX(-50%);font:400 10px "JetBrains Mono",monospace;letter-spacing:.3em;text-transform:uppercase;color:var(--faint);animation:cue 2.4s ease-in-out infinite}
 @keyframes cue{50%{transform:translate(-50%,6px);opacity:.5}}
-.below{position:relative;z-index:2;background:linear-gradient(180deg,rgba(3,6,5,0) 0,rgba(3,6,5,.86) 22vh,rgba(3,6,5,.94) 100%);backdrop-filter:blur(2px)}
+.below{position:relative;z-index:2;background:#030605}
+.below > .sec:first-child{padding-top:10vh}
 .sec{max-width:1120px;margin:0 auto;padding:16vh 40px 6vh}
 .sec-k{font:400 11px "JetBrains Mono",monospace;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);display:flex;align-items:center;gap:10px;margin-bottom:18px}
 .sec-k::before{content:"";width:28px;height:1px;background:var(--ember);opacity:.7}
@@ -281,7 +283,26 @@ header{pointer-events:auto}
 
 .storywrap{position:relative;z-index:2;background:#030605}
 .storywrap::before{content:"";position:absolute;left:0;right:0;top:-30vh;height:30vh;background:linear-gradient(180deg,rgba(3,6,5,0),#030605);pointer-events:none;z-index:3}
-.storywrap::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:22vh;background:linear-gradient(180deg,rgba(3,6,5,0),#030605);pointer-events:none;z-index:3}
+.wstats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(143,216,255,.14);border:1px solid rgba(143,216,255,.14);border-radius:14px;overflow:hidden}
+.wstats article{background:#05100f;padding:24px 22px;display:grid;gap:8px;align-content:start}
+.wstats .big{font-weight:300;font-size:clamp(32px,3.2vw,46px);letter-spacing:-.03em;color:#bfe8ff}
+.wstats p{color:var(--dim);font-size:14px;line-height:1.5}
+.wgrid{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;margin-top:40px}
+.wh{font:400 11px "JetBrains Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:#8fd8ff;margin-bottom:16px}
+.wh span{color:var(--faint);letter-spacing:.06em;text-transform:none}
+.wbar{display:grid;grid-template-columns:130px 1fr 54px;align-items:center;gap:12px;margin:10px 0;font-size:13.5px}
+.wbar b{font-weight:500;color:var(--ink)}
+.wbar i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,#2f86b8,#8fd8ff);width:var(--w)}
+.wbar em{font-style:normal;font:400 12px "JetBrains Mono",monospace;color:var(--dim);text-align:right}
+.wplaces{display:grid;gap:10px;align-content:start}
+.wplaces article{display:grid;gap:3px;padding:14px 16px;border-radius:12px;border:1px solid rgba(143,216,255,.18);background:rgba(8,24,30,.5)}
+.wplaces b{font-weight:500;font-size:14.5px}.wplaces span{color:var(--dim);font-size:13px}
+.wnote{margin-top:22px;font:400 11px "JetBrains Mono",monospace;color:var(--faint);line-height:1.6;max-width:90ch}
+@media(max-width:900px){.wstats{grid-template-columns:1fr 1fr}.wgrid{grid-template-columns:1fr}}
+@media(max-width:520px){.wstats{grid-template-columns:1fr}.wbar{grid-template-columns:100px 1fr 44px}}
+.archsec{position:relative;z-index:2;background:#030605;padding:6vh clamp(16px,3vw,40px) 2vh}
+.archsec iframe{display:block;width:100%;max-width:1360px;margin:0 auto;height:min(1080px,120vh);border:0;border-radius:18px;background:#07110e}
+@media(max-width:900px){.archsec iframe{height:1500px}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -371,6 +392,9 @@ document.querySelectorAll('.places a').forEach(function(a){ a.addEventListener('
       </div>
 </section>
 </div>
+<section class="archsec" id="architecture" aria-label="How askgaia works">
+  <iframe src="/architecture.html" title="askgaia system architecture: users, agent, two MCP servers, 14 tools, Neon" loading="lazy"></iframe>
+</section>
 <div class="below">
   <section class="sec" id="facts">
     <p class="sec-k">What the records say</p>
@@ -381,7 +405,7 @@ document.querySelectorAll('.places a').forEach(function(a){ a.addEventListener('
       <article><p class="big">273×</p><p>the warming power of nitrous oxide from farm fertilizer. Agricultural N₂O rose 40% from 1980 to 2020.</p><small>UN Environment Programme</small></article>
       <article><p class="big">1.55 M</p><p>lbs applied within 1.25 km of <b>Alisal High School</b> in Salinas, 2020–2024, most of it the fumigant chloropicrin.</p><small>CDPR Pesticide Use Reports</small></article>
     </div>
-    <blockquote>Hispanic children in California are 91% more likely to attend the schools with the most pesticide use nearby.<cite>California Department of Public Health, 2014 · 15 highest-use counties</cite></blockquote>
+    <blockquote>1.55 million pounds were applied within 1.25 km of one high school in Salinas, 2020–2024.<cite>CDPR Pesticide Use Reports · Alisal High School</cite></blockquote>
   </section>
 
   <section class="sec" id="journey" hidden>
@@ -461,6 +485,37 @@ document.querySelectorAll('.places a').forEach(function(a){ a.addEventListener('
       <article><p class="mcp-n">askgaia evidence MCP</p><p class="mcp-d">Web evidence through Bright Data</p><ul><li>find_place</li><li>discover_public_evidence</li><li>read_public_source</li><li>get_county_records</li><li>explain_finding</li><li>check_source_change</li></ul></article>
       <article><p class="mcp-n">Data layer</p><p class="mcp-d">What the tools stand on</p><ul><li>Neon Postgres + PostGIS</li><li>CDPR Pesticide Use Reports 2014–2024</li><li>CDPR SURF creek sampling</li><li>Open-Meteo wind</li><li>Google Photorealistic 3D Tiles</li><li>OpenStreetMap</li></ul></article>
     </div>
+  </section>
+
+  <section class="sec" id="water">
+    <p class="sec-k">What's in the water</p>
+    <h2>The fields drain into the creeks children walk past.</h2>
+    <div class="wstats">
+      <article><p class="big">3,817</p><p>creeks, canals and drains sampled by the state, 2010–2025.</p></article>
+      <article><p class="big">79%</p><p>of those sites had at least one pesticide detected.</p></article>
+      <article><p class="big">96,648</p><p>pesticide detections across 38,870 water samples.</p></article>
+      <article><p class="big">194</p><p>sites still show DDT or its breakdown products, banned since 1972.</p></article>
+    </div>
+    <div class="wgrid">
+      <div class="wbars">
+        <p class="wh">Most widespread in California surface water <span>· sites where found</span></p>
+        <div class="wbar"><b>Copper</b><i style="--w:100%"></i><em>2,427</em></div>
+        <div class="wbar"><b>Bifenthrin</b><i style="--w:23.6%"></i><em>573</em></div>
+        <div class="wbar"><b>Diuron</b><i style="--w:15.5%"></i><em>375</em></div>
+        <div class="wbar"><b>Imidacloprid</b><i style="--w:13.6%"></i><em>331</em></div>
+        <div class="wbar"><b>Methoxyfenozide</b><i style="--w:12.4%"></i><em>300</em></div>
+        <div class="wbar"><b>Malathion</b><i style="--w:12.1%"></i><em>294</em></div>
+        <div class="wbar"><b>Chlorpyrifos</b><i style="--w:11.5%"></i><em>279</em></div>
+      </div>
+      <div class="wplaces">
+        <p class="wh">Near our schools</p>
+        <article><b>Alisal Creek at Hartnell Rd · Salinas</b><span>808 detections · imidacloprid, bensulide, methomyl</span></article>
+        <article><b>Natividad Creek · Salinas</b><span>diazinon found in every sample</span></article>
+        <article><b>Santa Clara Drain · Oxnard</b><span>297 detections · copper, chlorpyrifos, DDE</span></article>
+        <article><b>Monterey County</b><span>10,777 detections, the most of any county; Ventura is second (9,710)</span></article>
+      </div>
+    </div>
+    <p class="wnote">Source: California Department of Pesticide Regulation, Surface Water Database (SURF), 2010–2025. This is creek, canal and drain water, not tap water. Copper is used as a fungicide but also comes from brakes and pipes.</p>
   </section>
 
   <section class="sec" id="realplace">
@@ -982,12 +1037,12 @@ const CH = [
     src:'University of Nebraska Medical Center, 2025 · association, not proof of cause' },
   { time:'4:20', ap:'PM', t:'Into the creek',
     story:'After school they cut along Natividad Creek. Her brother looks for frogs. Water from the fields finds its way here too.',
-    data:'Near Salinas, state sampling found <b>diazinon in every sample</b> at Natividad Creek.',
-    src:'CDPR Surface Water Database (SURF)' },
+    data:'State samplers found pesticides in this water <b>808 times</b> at Alisal Creek, and diazinon in every sample at Natividad Creek, both within 5 km of her school.',
+    src:'CDPR Surface Water Database (SURF), 2010–2025 · creek water, not tap water' },
   { time:'8:00', ap:'PM', t:'And the planet', quote:true,
     story:'Maria does her homework at the kitchen table. The fields are quiet. Her town is one small part of something much bigger.',
     data:'Making a kilogram of pesticide takes <b>10×</b> the energy of nitrogen fertilizer.',
-    src:'California Department of Public Health, 2014 · 15 highest-use counties' }
+    src:'Rachel Carson · Silent Spring, 1962' }
 ];
 const LAST = CH.length - 1;
 const CLOCK = [400, 425, 450, 615, 980, 1200];            // minutes since midnight
@@ -1532,7 +1587,7 @@ function capHTML(i) {
     <div class="te-mono te-chap">Chapter ${String(i + 1).padStart(2, '0')} / 06</div>
     <h2 class="te-title">${c.t}</h2>
     <p class="te-story">${c.story}</p>
-    ${c.quote ? `<p class="te-quote">Hispanic children in California are 91% more likely to attend the schools with the most pesticide use nearby.</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
+    ${c.quote ? `<p class="te-quote">“In nature nothing exists alone.”</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
     <div class="te-mono te-data">${c.data}</div>
     ${c.quote ? '' : `<div class="te-src">Source · ${c.src}</div>`}
     ${c.quote ? `<a class="te-cta" href="#ask">Ask Gaia about your place <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>` : nav}`;
@@ -1550,7 +1605,9 @@ function showCaption(i) {
 function sectionMetrics() { const r = root.getBoundingClientRect(); const total = Math.max(1, root.offsetHeight - sticky.offsetHeight); return { r, total }; }
 function scrollToCh(i) {
   i = clamp(i, 0, LAST); const { r, total } = sectionMetrics();
-  window.scrollTo({ top:window.scrollY + r.top + total * i / LAST + 2, behavior:reduce ? 'auto' : 'smooth' });
+  const se = document.scrollingElement || document.documentElement;
+  const top = se.scrollTop + r.top + total * i / LAST + 2; // stays inside the story section; the stage is sticky so only the chapter changes
+  se.scrollTo({ top, behavior:reduce ? 'auto' : 'smooth' });
 }
 let visible = true;
 new IntersectionObserver(es => { visible = es[0].isIntersecting; }, { threshold:0 }).observe(root);

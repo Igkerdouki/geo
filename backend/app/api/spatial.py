@@ -102,7 +102,7 @@ def county_totals(start_year: int = Query(2020, ge=2014, le=2024), end_year: int
     return out
 
 
-_GRID_CACHE = {}
+_GRID_CACHE = {}  # cleared on restart
 
 
 @router.get("/spatial/grid")
@@ -120,11 +120,14 @@ def grid(cell_deg: float = Query(0.08, ge=0.03, le=0.5), start_year: int = Query
                                 coalesce(sum(lbs) FILTER (WHERE chem_code = ANY(%(fum)s)), 0) fum
                          FROM pur_monthly WHERE year BETWEEN %(y0)s AND %(y1)s GROUP BY 1),
             pts AS (SELECT DISTINCT ON (comtrs) comtrs, lat, lon FROM plss_sections)
-            SELECT floor(p.lat / %(c)s) gy, floor(p.lon / %(c)s) gx, sum(s.lbs), sum(s.fum), left(min(s.comtrs), 2)
+            SELECT floor(p.lat / %(c)s) gy, floor(p.lon / %(c)s) gx, sum(s.lbs), sum(s.fum), left(min(s.comtrs), 2),
+                   sum(p.lat * s.lbs) / nullif(sum(s.lbs), 0), sum(p.lon * s.lbs) / nullif(sum(s.lbs), 0)
             FROM sec s JOIN pts p USING (comtrs) GROUP BY 1, 2 HAVING sum(s.lbs) > 1000
             """, {"y0": start_year, "y1": end_year, "c": cell_deg, "fum": list(FUMIGANTS)}).fetchall()
     out = {"cell_deg": cell_deg, "years": [start_year, end_year],
            "cells": [{"lat": round((gy + 0.5) * cell_deg, 4), "lon": round((gx + 0.5) * cell_deg, 4), "lbs": round(l),
-                      "fumigant_lbs": round(f), "county": COUNTY_NAMES.get(cd, cd)} for gy, gx, l, f, cd in rows]}
+                      "fumigant_lbs": round(f), "county": COUNTY_NAMES.get(cd, cd),
+                      "hot_lat": round(wl, 5) if wl else None, "hot_lon": round(wo, 5) if wo else None}  # pound-weighted centre
+                     for gy, gx, l, f, cd, wl, wo in rows]}
     _GRID_CACHE[key] = out
     return out

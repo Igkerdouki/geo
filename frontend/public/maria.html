@@ -156,12 +156,12 @@ const CH = [
     src:'University of Nebraska Medical Center, 2025 · association, not proof of cause' },
   { time:'4:20', ap:'PM', t:'Into the creek',
     story:'After school they cut along Natividad Creek. Her brother looks for frogs. Water from the fields finds its way here too.',
-    data:'Near Salinas, state sampling found <b>diazinon in every sample</b> at Natividad Creek.',
-    src:'CDPR Surface Water Database (SURF)' },
+    data:'State samplers found pesticides in this water <b>808 times</b> at Alisal Creek, and diazinon in every sample at Natividad Creek, both within 5 km of her school.',
+    src:'CDPR Surface Water Database (SURF), 2010–2025 · creek water, not tap water' },
   { time:'8:00', ap:'PM', t:'And the planet', quote:true,
     story:'Maria does her homework at the kitchen table. The fields are quiet. Her town is one small part of something much bigger.',
     data:'Making a kilogram of pesticide takes <b>10×</b> the energy of nitrogen fertilizer.',
-    src:'California Department of Public Health, 2014 · 15 highest-use counties' }
+    src:'Rachel Carson · Silent Spring, 1962' }
 ];
 const LAST = CH.length - 1;
 const CLOCK = [400, 425, 450, 615, 980, 1200];            // minutes since midnight
@@ -706,7 +706,7 @@ function capHTML(i) {
     <div class="te-mono te-chap">Chapter ${String(i + 1).padStart(2, '0')} / 06</div>
     <h2 class="te-title">${c.t}</h2>
     <p class="te-story">${c.story}</p>
-    ${c.quote ? `<p class="te-quote">Hispanic children in California are 91% more likely to attend the schools with the most pesticide use nearby.</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
+    ${c.quote ? `<p class="te-quote">“In nature nothing exists alone.”</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
     <div class="te-mono te-data">${c.data}</div>
     ${c.quote ? '' : `<div class="te-src">Source · ${c.src}</div>`}
     ${c.quote ? `<a class="te-cta" href="#ask">Ask Gaia about your place <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>` : nav}`;

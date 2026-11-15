@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>askgaia Architecture</title></head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#07110e; --panel:#0e1d18; --panel2:#132620; --line:rgba(116,227,187,.16); --line2:rgba(116,227,187,.32);
+  --text:#edf5ee; --dim:#a0b7a9; --faint:#6d8579;
+  --green:#b9f972; --mint:#74e3bb; --cyan:#65dbeb; --gold:#f1da8d; --rose:#f59bb4;
+  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --body:"DM Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:15px/1.6 var(--body);padding-inline:clamp(16px,4vw,48px);padding-block:28px 48px}
+.wrap{max-width:1320px;margin:0 auto;display:grid;gap:22px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mint)}
+h1{font:600 clamp(30px,4.4vw,52px)/1.02 var(--display);letter-spacing:-.04em;margin:10px 0 8px;text-wrap:balance}
+h1 em{font-style:normal;color:var(--green)}
+.lede{color:var(--dim);max-width:62ch;margin:0}
+.scen{display:flex;flex-wrap:wrap;gap:8px}
+.scen button{font:500 13px/1 var(--body);color:var(--dim);background:transparent;border:1px solid var(--line2);border-radius:99px;padding:10px 14px;cursor:pointer}
+.scen button[aria-pressed="true"]{background:var(--green);color:#0b1606;border-color:var(--green)}
+.scen button:focus-visible,.ctrl button:focus-visible,.ctrl input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}
+@media(max-width:1080px){.stage{grid-template-columns:1fr}}
+.board{background:radial-gradient(120% 90% at 30% 20%,#0f2620 0%,var(--bg) 70%);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:grid}
+.cols{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--line);font:500 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.cols span{padding:12px 14px}
+.scroller{overflow-x:auto}
+svg{display:block;width:100%;min-width:860px;height:auto}
+.node rect{fill:var(--panel);stroke:var(--line2);stroke-width:1}
+.node text{fill:var(--text);font:500 13px var(--body)}
+.node .sub{fill:var(--faint);font:400 10.5px var(--mono)}
+.node{cursor:pointer}
+.node:hover rect,.node:focus rect{stroke:var(--mint)}
+.node:focus{outline:none}
+.node.on rect{stroke:var(--green);stroke-width:1.6;filter:url(#glow)}
+.node.sel rect{stroke:var(--cyan);stroke-width:2}
+.box{fill:rgba(116,227,187,.035);stroke:var(--line);stroke-dasharray:4 5}
+.collabel{fill:var(--faint);font:500 10.5px var(--mono);letter-spacing:.16em}
+.boxlabel{fill:var(--mint);font:500 10.5px var(--mono);letter-spacing:.12em}
+.edge{fill:none;stroke:rgba(116,227,187,.13);stroke-width:1.2}
+.edge.hot{stroke:rgba(185,249,114,.55);stroke-width:1.8}
+.caption{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;padding:16px 18px;border-top:1px solid var(--line);background:rgba(7,17,14,.6)}
+.stepno{font:600 28px/1 var(--display);color:var(--green);font-variant-numeric:tabular-nums;min-width:2.2ch}
+.caption h2{font:600 17px/1.25 var(--display);margin:0 0 4px;letter-spacing:-.01em}
+.caption p{margin:0;color:var(--dim);font-size:14px;max-width:80ch}
+.ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--line)}
+.ctrl button{font:600 13px/1 var(--body);background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:10px;padding:10px 14px;cursor:pointer;min-width:44px}
+.ctrl button.play{background:var(--green);color:#0b1606;border-color:var(--green);min-width:96px}
+.ctrl input[type=range]{flex:1;min-width:160px;accent-color:var(--green)}
+.ctrl .speed{font:500 12px var(--mono);color:var(--dim)}
+.ticks{display:flex;gap:4px;flex:1;min-width:160px}
+.ticks i{flex:1;height:6px;border-radius:3px;background:var(--line);cursor:pointer}
+.ticks i.done{background:rgba(185,249,114,.45)}.ticks i.now{background:var(--green)}
+
+aside{display:grid;gap:14px;align-content:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.card h3{font:600 15px/1.2 var(--display);margin:6px 0 8px}
+.card p{margin:0 0 10px;color:var(--dim);font-size:13.5px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12.5px}
+.kv dt{color:var(--faint);font-family:var(--mono);font-size:11px;padding-top:2px}
+.kv dd{margin:0;color:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips span{font:500 11px var(--mono);padding:4px 8px;border-radius:6px;background:rgba(101,219,235,.1);color:var(--cyan)}
+.log{font:400 11.5px/1.55 var(--mono);color:var(--dim);max-height:300px;overflow:auto;display:grid;gap:8px}
+.log div{padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.25);border-left:2px solid var(--line2);white-space:pre-wrap;word-break:break-word}
+.log .call{border-left-color:var(--green)}.log .resp{border-left-color:var(--cyan)}.log .note{border-left-color:var(--gold);color:var(--gold)}
+.log b{color:var(--text);font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--dim)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+footer{color:var(--faint);font-size:12px;max-width:90ch}
+@media(prefers-reduced-motion:reduce){.node.on rect{filter:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">askgaia · how it works</div>
+      <h1>Two MCP servers. Fourteen tools. <em>One question.</em></h1>
+      <p class="lede">Press play to watch a question travel through askgaia: the investigator agent calls tools on two MCP servers, and every answer comes back with its sources and limits. Click any box to see what it does.</p>
+    </div>
+    <div class="scen" role="group" aria-label="Scenario">
+      <button id="sc0" aria-pressed="true">Ask about a school</button>
+      <button id="sc1" aria-pressed="false">Any AI can use it</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <section class="board" aria-label="Animated architecture diagram">
+            <div class="scroller"><svg id="svg" viewBox="0 50 1280 700" role="img" aria-label="askgaia architecture: users, interfaces, agent, two MCP servers, agents, MCP tools and data sources">
+        <defs>
+          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <radialGradient id="pk"><stop offset="0" stop-color="#f6ffe8"/><stop offset=".45" stop-color="#b9f972"/><stop offset="1" stop-color="#b9f972" stop-opacity="0"/></radialGradient>
+          <radialGradient id="pkr"><stop offset="0" stop-color="#eafcff"/><stop offset=".45" stop-color="#65dbeb"/><stop offset="1" stop-color="#65dbeb" stop-opacity="0"/></radialGradient>
+        </defs>
+        <g id="boxes"></g><g id="edges"></g><g id="nodes"></g><g id="packets"></g>
+      </svg></div>
+      <div class="caption" aria-live="polite"><div class="stepno" id="stepno">01</div><div><h2 id="capT"></h2><p id="capP"></p></div></div>
+      <div class="ctrl">
+        <button id="prev" aria-label="Previous step">◀</button>
+        <button id="play" class="play">▶ Play</button>
+        <button id="next" aria-label="Next step">▶</button>
+        <div class="ticks" id="ticks" aria-label="Steps"></div>
+        <label class="speed" for="spd">Speed <input id="spd" type="range" min="0.5" max="2" step="0.25" value="1" style="width:90px;vertical-align:middle"></label>
+      </div>
+    </section>
+
+    <aside>
+      <div class="card" id="info">
+        <div class="eyebrow" id="infoKind">Component</div>
+        <h3 id="infoT">Orchestrator agent</h3>
+        <p id="infoP"></p>
+        <dl class="kv" id="infoKV"></dl>
+        <div class="chips" id="infoChips"></div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">Tool-call trace · example values</div>
+        <div class="log" id="log" style="margin-top:10px"></div>
+      </div>
+      <div class="legend"><span><i style="background:var(--green)"></i>request</span><span><i style="background:var(--cyan)"></i>result</span><span><i style="background:var(--gold)"></i>check / caveat</span></div>
+    </aside>
+  </div>
+
+  <footer>The trace shows illustrative example values, not real query results. Spray records are located to roughly one square mile (PLSS section) and modelled drift is a relative estimate, so askgaia reports recorded use, modelled drift and actual exposure as three different things.</footer>
+</div>
+
+<script>
+(function(){
+const N={
+ user:{x:20,y:200,w:160,h:58,t:'Parents · clinics',s:'researchers · judges',kind:'People',
+   p:'Ask about a place in plain words: a school, a street, a town. They see an answer with sources, a map and a drift scenario.',
+   kv:{Asks:'"Is Alisal High near heavy spraying?"',Gets:'Observed · Modelled · Uncertain'}},
+ ui:{x:20,y:380,w:160,h:58,t:'askgaia web app',s:'React · three.js · Google 3D',kind:'Interface',
+   p:'The landing Earth, Maria’s story, the photoreal map and the real-town models. Built by Ioanna.',
+   kv:{Views:'Earth · California · town model'}},
+ ai:{x:20,y:560,w:160,h:58,t:'Any MCP client',s:'Claude Desktop · Cursor',kind:'Interface',
+   p:'Because the tools speak MCP, any AI assistant can use askgaia directly, not only our web app.',kv:{Protocol:'Model Context Protocol'}},
+ orch:{x:250,y:380,w:170,h:66,t:'Investigator agent',s:'LLM · plans + routes',kind:'Agent',
+   p:'Reads the question, decides which tools to call, and writes the answer only from tool results, so every claim carries a source.',
+   kv:{Rule:'no tool result → no claim'},chips:['plan','call tools','cite']},
+ loc:{x:500,y:110,w:170,h:58,t:'Locate',s:'place + geometry',kind:'Step',p:'Turns a name into coordinates and the surrounding square-mile sections.',kv:{Tools:'geocode · find_place'}},
+ data:{x:500,y:270,w:170,h:58,t:'Records',s:'pesticides · water',kind:'Step',p:'Pulls recorded pesticide use, chemical hazards and measured creek water near the place.',kv:{Tools:'pur_records · chemical_profile · water_nearby'}},
+ sim:{x:500,y:430,w:170,h:58,t:'Wind + drift',s:'Gaussian plume',kind:'Step',p:'Gets the wind and runs the drift model toward the place.',kv:{Tools:'wind · run_plume'}},
+ ver:{x:500,y:590,w:170,h:58,t:'Verify + evidence',s:'sources + web',kind:'Step',p:'Attaches citations and limits, and finds public web evidence such as county notices, through Bright Data.',kv:{Tools:'cite_sources · discover_public_evidence · read_public_source'}},
+ t_geo:{x:760,y:100,w:210,h:40,t:'geocode',s:'spatial MCP',kind:'MCP tool',p:'Address or school → coordinates.',kv:{Server:'askgaia spatial MCP'}},
+ t_pur:{x:760,y:150,w:210,h:40,t:'pur_records',s:'spatial MCP',kind:'MCP tool',p:'Recorded pesticide use within a radius and years, per chemical. PostGIS query on Neon.',kv:{Server:'askgaia spatial MCP'}},
+ t_chem:{x:760,y:200,w:210,h:40,t:'chemical_profile',s:'spatial MCP',kind:'MCP tool',p:'Hazard class, restrictions and notes for a chemical.',kv:{Server:'askgaia spatial MCP'}},
+ t_water:{x:760,y:250,w:210,h:40,t:'water_nearby',s:'spatial MCP',kind:'MCP tool',p:'Canals and creeks nearby, plus pesticides measured in them (CDPR SURF).',kv:{Server:'askgaia spatial MCP'}},
+ t_wind:{x:760,y:300,w:210,h:40,t:'wind',s:'spatial MCP',kind:'MCP tool',p:'Hourly wind, forecast or a past date.',kv:{Server:'askgaia spatial MCP'}},
+ t_plume:{x:760,y:350,w:210,h:40,t:'run_plume',s:'spatial MCP',kind:'MCP tool',p:'Gaussian plume (Pasquill–Gifford) toward a target.',kv:{Server:'askgaia spatial MCP'}},
+ t_cite:{x:760,y:400,w:210,h:40,t:'cite_sources',s:'spatial MCP',kind:'MCP tool',p:'Datasets, versions and known limitations.',kv:{Server:'askgaia spatial MCP'}},
+ t_find:{x:760,y:500,w:210,h:40,t:'find_place',s:'evidence MCP',kind:'MCP tool',p:'Catalogue locations.',kv:{Server:'askgaia evidence MCP'}},
+ t_web:{x:760,y:550,w:210,h:40,t:'discover_public_evidence',s:'evidence MCP',kind:'MCP tool',p:'Public web search through Bright Data SERP. Results are leads, not facts.',kv:{Server:'askgaia evidence MCP'}},
+ t_read:{x:760,y:600,w:210,h:40,t:'read_public_source',s:'evidence MCP',kind:'MCP tool',p:'Fetches a public page with a content hash for provenance.',kv:{Server:'askgaia evidence MCP'}},
+ t_case:{x:760,y:650,w:210,h:40,t:'investigation tools',s:'evidence MCP · 4 tools',kind:'MCP tool',p:'get_investigation, explain_finding, check_source_change, get_county_records.',kv:{Server:'askgaia evidence MCP'}},
+ d_neon:{x:1050,y:150,w:210,h:84,t:'Neon Postgres + PostGIS',s:'the data backbone',kind:'Database',p:'11.1 M rows of pesticide use 2014–2024, 329k square-mile sections, 1,092 chemicals, 3,817 water sites, and saved investigations.',kv:{Rows:'11.1 M summarised from 48 M',Extensions:'PostGIS'}},
+ d_wx:{x:1050,y:300,w:210,h:40,t:'Open-Meteo',s:'wind archive + forecast',kind:'Data source',p:'Hourly wind for any place and date.',kv:{Access:'public API'}},
+ d_osm:{x:1050,y:360,w:210,h:40,t:'OpenStreetMap',s:'buildings · streets · canals',kind:'Data source',p:'Real buildings, street names, canals, schools, gas stations, churches.',kv:{Via:'OpenFreeMap vector tiles'}},
+ d_bd:{x:1050,y:550,w:210,h:40,t:'Bright Data',s:'SERP + Web Unlocker',kind:'Data source',p:'Searches and reads public web pages for evidence.',kv:{Track:'Data for Good'}},
+ d_cdpr:{x:1050,y:440,w:210,h:58,t:'CDPR open data',s:'Pesticide Use Reports · SURF',kind:'Data source',p:'California Department of Pesticide Regulation records, loaded into Neon.',kv:{Years:'2014–2024'}}
+};
+const BOXES=[{x:740,y:72,w:250,h:380,l:'SPATIAL MCP · 7 TOOLS'},{x:740,y:472,w:250,h:230,l:'EVIDENCE MCP · 7 TOOLS'}];
+const E=[['user','ui'],['user','ai'],['ui','orch'],['ai','orch'],['orch','loc'],['orch','data'],['orch','sim'],['orch','ver'],['ui','sim'],
+ ['loc','t_geo'],['loc','t_find'],['data','t_pur'],['data','t_chem'],['data','t_water'],['sim','t_wind'],['sim','t_plume'],['ver','t_cite'],['ver','t_web'],['ver','t_read'],['ver','t_case'],
+ ['t_pur','d_neon'],['t_chem','d_neon'],['t_water','d_neon'],['t_case','d_neon'],['t_wind','d_wx'],['t_geo','d_osm'],['t_web','d_bd'],['t_read','d_bd'],['d_cdpr','d_neon']];
+const S=[
+ {name:'Ask about a school',steps:[
+  {t:'Someone asks about a place',p:'"Is Alisal High School near heavy pesticide use?" It goes to the investigator agent, from the web app or any MCP client.',hops:[['user','ui'],['ui','orch']],log:[['call','<b>user</b> → investigator\n"Is Alisal High near heavy pesticide use?"']]},
+  {t:'Locate',p:'geocode finds the school; the section map in Neon gives the square miles around it.',hops:[['orch','loc'],['loc','t_geo'],['t_geo','d_osm'],['d_osm','t_geo',1],['t_geo','loc',1]],log:[['call','<b>geocode</b>("Alisal High School, Salinas")'],['resp','{"lat":36.6835,"lon":-121.6004}']]},
+  {t:'Records from Neon',p:'pur_records runs a PostGIS query on Neon: every recorded application within 1.25 km, 2020–2024.',hops:[['orch','data'],['data','t_pur'],['t_pur','d_neon'],['d_neon','t_pur',1],['t_pur','data',1]],log:[['call','<b>pur_records</b>(36.6835, -121.6004, 1.25 km)'],['resp','{"total_lbs":1545950,"top":"chloropicrin"}']]},
+  {t:'Water',p:'water_nearby returns canals and the pesticides measured in nearby creeks.',hops:[['data','t_water'],['t_water','d_neon'],['d_neon','t_water',1],['t_water','data',1]],log:[['call','<b>water_nearby</b>(36.6835, -121.6004)'],['resp','Alisal Creek · 808 detections']]},
+  {t:'Wind + drift',p:'wind gets the hourly wind; run_plume models where a release would travel.',hops:[['orch','sim'],['sim','t_wind'],['t_wind','d_wx'],['d_wx','t_wind',1],['sim','t_plume'],['t_plume','sim',1]],log:[['call','<b>run_plume</b>(field → school, NW 4 m/s, D)'],['resp','{"level":"moderate","note":"modelled"}']]},
+  {t:'Verify + web evidence',p:'cite_sources adds limits; discover_public_evidence searches public notices through Bright Data.',hops:[['orch','ver'],['ver','t_cite'],['ver','t_web'],['t_web','d_bd'],['d_bd','t_web',1],['t_cite','ver',1]],log:[['call','<b>discover_public_evidence</b>("Monterey County fumigant notice")'],['note','leads only · verified before use']]},
+  {t:'One sourced answer',p:'The agent answers as Observed, Modelled and Uncertain; the app flies to the school and shows the drift.',hops:[['ver','orch',1],['sim','orch',1],['data','orch',1],['orch','ui',1]],log:[['resp','<b>answer</b>\nObserved: 1.55 M lbs within 1.25 km\nModelled: drift reaches campus on NW wind\nUncertain: exact fields, personal exposure']]}
+ ]},
+ {name:'Any AI can use it',steps:[
+  {t:'An assistant connects over MCP',p:'Claude Desktop or Cursor loads the askgaia MCP servers and sees 14 tools.',hops:[['user','ai'],['ai','orch']],log:[['note','14 tools discovered over MCP']]},
+  {t:'It calls the same tools',p:'Same data, same sources, no web app needed.',hops:[['orch','data'],['data','t_pur'],['t_pur','d_neon'],['d_neon','t_pur',1]],log:[['call','<b>pur_records</b>(…)']]}
+ ]}
+];
+
+const svg=document.getElementById('svg'),NS='http://www.w3.org/2000/svg';
+const mk=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e};
+const gB=document.getElementById('boxes'),gE=document.getElementById('edges'),gN=document.getElementById('nodes'),gP=document.getElementById('packets');
+[['PEOPLE',20],['ORCHESTRATOR',250],['AGENTS',500],['MCP TOOLS',760],['DATA + MODELS',1050]].forEach(([l,x])=>{mk('text',{x,y:78,class:'collabel'},gB).textContent=l});
+BOXES.forEach(b=>{mk('rect',{x:b.x,y:b.y,width:b.w,height:b.h,rx:16,class:'box'},gB);mk('text',{x:b.x+14,y:b.y+20,class:'boxlabel'},gB).textContent=b.l});
+const C=k=>{const n=N[k];return{l:[n.x,n.y+n.h/2],r:[n.x+n.w,n.y+n.h/2],c:[n.x+n.w/2,n.y+n.h/2]}};
+const paths={};
+E.forEach(([a,b])=>{const A=C(a),B=C(b);let s,e;
+  if(N[b].x>N[a].x+20){s=A.r;e=B.l}else if(N[a].x>N[b].x+20){s=A.l;e=B.r}else{s=[A.c[0],N[a].y+(N[b].y>N[a].y?N[a].h:0)];e=[B.c[0],N[b].y+(N[b].y>N[a].y?0:N[b].h)]}
+  const dx=Math.abs(e[0]-s[0])*.5||40;
+  const d=(s[1]===e[1]||Math.abs(e[0]-s[0])>20)?`M${s[0]},${s[1]} C${s[0]+(e[0]>s[0]?dx:-dx)},${s[1]} ${e[0]-(e[0]>s[0]?dx:-dx)},${e[1]} ${e[0]},${e[1]}`:`M${s[0]},${s[1]} C${s[0]},${(s[1]+e[1])/2} ${e[0]},${(s[1]+e[1])/2} ${e[0]},${e[1]}`;
+  paths[a+'>'+b]=mk('path',{d,class:'edge'},gE)});
+const nodeEl={};
+for(const k in N){const n=N[k];const g=mk('g',{class:'node',tabindex:0,role:'button','aria-label':n.t},gN);
+  mk('rect',{x:n.x,y:n.y,width:n.w,height:n.h,rx:12},g);
+  mk('text',{x:n.x+14,y:n.y+(n.h>50?24:19)},g).textContent=n.t;
+  mk('text',{x:n.x+14,y:n.y+(n.h>50?42:34),class:'sub'},g).textContent=n.s;
+  g.addEventListener('click',()=>select(k));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(k)}});
+  nodeEl[k]=g}
+let selected='orch';
+function select(k){nodeEl[selected]?.classList.remove('sel');selected=k;nodeEl[k].classList.add('sel');const n=N[k];
+  $('infoKind').textContent=n.kind;$('infoT').textContent=n.t;$('infoP').textContent=n.p;
+  $('infoKV').innerHTML=Object.entries(n.kv||{}).map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  $('infoChips').innerHTML=(n.chips||[]).map(c=>`<span>${c}</span>`).join('')}
+function $(id){return document.getElementById(id)}
+
+let sc=0,step=0,playing=false,speed=1,anim=null;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function edgeFor(a,b){return paths[a+'>'+b]?{p:paths[a+'>'+b],rev:false}:{p:paths[b+'>'+a],rev:true}}
+function clearHot(){document.querySelectorAll('.edge.hot').forEach(e=>e.classList.remove('hot'));document.querySelectorAll('.node.on').forEach(e=>e.classList.remove('on'))}
+function renderStep(){const st=S[sc].steps[step];$('stepno').textContent=String(step+1).padStart(2,'0');$('capT').textContent=st.t;$('capP').textContent=st.p;
+  $('log').innerHTML=S[sc].steps.slice(0,step+1).flatMap(s=>s.log).map(([k,v])=>`<div class="${k}">${v}</div>`).join('');$('log').scrollTop=1e6;
+  $('ticks').innerHTML=S[sc].steps.map((_,i)=>`<i class="${i<step?'done':i===step?'now':''}" data-i="${i}" title="Step ${i+1}"></i>`).join('');
+  clearHot();st.hops.forEach(h=>{const{p}=edgeFor(h[0],h[1]);p&&p.classList.add('hot');nodeEl[h[0]].classList.add('on');nodeEl[h[1]].classList.add('on')})}
+function runStep(done){renderStep();cancelAnimationFrame(anim);gP.innerHTML='';
+  const hops=S[sc].steps[step].hops;let i=0;const dur=reduce?250:850;
+  const next=()=>{if(i>=hops.length){gP.innerHTML='';done&&done();return}
+    const h=hops[i++],{p,rev}=edgeFor(h[0],h[1]),back=!!h[2];const L=p.getTotalLength();
+    const dot=mk('circle',{r:9,fill:back?'url(#pkr)':'url(#pk)'},gP);const t0=performance.now();
+    const tick=now=>{let f=Math.min(1,(now-t0)/(dur/speed));const e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;const pt=p.getPointAtLength((rev?1-e:e)*L);dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
+      if(f<1)anim=requestAnimationFrame(tick);else{dot.remove();next()}};anim=requestAnimationFrame(tick)};
+  next()}
+function play(){playing=true;$('play').textContent='❚❚ Pause';const go=()=>{if(!playing)return;runStep(()=>{if(!playing)return;setTimeout(()=>{if(!playing)return;if(step<S[sc].steps.length-1){step++;go()}else{playing=false;$('play').textContent='↺ Replay'}},(reduce?400:900)/speed)})};go()}
+function pause(){playing=false;$('play').textContent='▶ Play'}
+$('play').onclick=()=>{if(playing)pause();else{if($('play').textContent.includes('Replay'))step=0;play()}};
+$('next').onclick=()=>{pause();step=Math.min(step+1,S[sc].steps.length-1);runStep()};
+$('prev').onclick=()=>{pause();step=Math.max(step-1,0);runStep()};
+$('ticks').onclick=e=>{const i=e.target.dataset.i;if(i!=null){pause();step=+i;runStep()}};
+$('spd').oninput=e=>speed=+e.target.value;
+[0,1].forEach(i=>$('sc'+i).onclick=()=>{pause();sc=i;step=0;[0,1].forEach(j=>$('sc'+j).setAttribute('aria-pressed',String(j===i)));renderStep();play()});
+select('d_neon');renderStep();setTimeout(play,600);
+})();
+</script>
+
+</body></html>

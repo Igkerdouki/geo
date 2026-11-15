@@ -18,7 +18,7 @@ const M = 111_320
 // Tour stops. Stops with `radius` pull real treated sections from /api/spatial/sections.
 const STOPS = [
   { id: 'earth', label: 'Earth', lat: 30, lon: -118, height: 7_600_000, tilt: 0 },
-  { id: 'ca', label: 'California', lat: 36.3, lon: -119.9, height: 360_000, tilt: 52, state: true,
+  { id: 'ca', label: 'California', lat: 36.3, lon: -119.9, height: 360_000, tilt: 52, state: true, model: 'california',
     title: 'California', note: 'Where pesticide is applied across the state. The Central Valley, Salinas and the Santa Maria coast rise highest.' },
   { id: 'fresno', model: 'biola', label: 'Biola · Fresno County', lat: 36.80457, lon: -120.01737, height: 700, tilt: 64, radius: 4, plume: true,
     title: 'Biola-Pershing Elementary, Fresno County', target: 'Biola-Pershing Elementary',
@@ -74,7 +74,7 @@ void main(){
   if (r > 1.0 || vCol.a < 0.002) discard;
   vec2 q = vUv * 2.4 + vSeed * 13.7;
   float tex = 0.62 * n(q + uTime * 0.07) + 0.38 * n(q * 2.13 - uTime * 0.11);
-  float a = (exp(-r * r * 4.0) - 0.02) * (0.3 + 0.7 * tex) * vCol.a * 0.32;
+  float a = (exp(-r * r * 4.0) - 0.02) * (0.3 + 0.7 * tex) * vCol.a * 0.55;
   gl_FragColor = vec4(vCol.rgb, max(a, 0.0));
 }`
 // Building footprints with heights from OpenStreetMap, served as vector tiles by OpenFreeMap
@@ -354,13 +354,16 @@ export default function EarthTour() {
     const stateGroup = new THREE.Group(); scene.add(stateGroup)
     const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 20, 1, false).translate(0, 0.5, 0)
     let stateCells = null // { mesh, cells }
+    let stateToken = 0
     async function buildState() {
+      const my = ++stateToken
       stateGroup.clear(); stateCells = null
       let grid, counties
       try { [grid, counties] = await Promise.all([fetch('/api/spatial/grid').then(r => r.json()), fetch('/api/spatial/counties').then(r => r.json())]) } catch { return }
+      if (my !== stateToken || site) return // a newer build or a different stop took over
       const cells = grid.cells.filter(c => c.lbs >= 50_000), max = Math.max(...cells.map(c => c.lbs)), half = grid.cell_deg / 2
       const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
-      const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.92 })
+      const mat = new THREE.MeshBasicMaterial({ depthWrite: true })
       const mesh = new THREE.InstancedMesh(geo, mat, cells.length)
       const up = new THREE.Vector3(0, 1, 0), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color()
       cells.forEach((c, i) => {
@@ -374,7 +377,7 @@ export default function EarthTour() {
         mesh.setColorAt(i, col)
       })
       mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true
-      mesh.layers.set(1); stateGroup.add(mesh)
+      mesh.layers.set(1); mesh.frustumCulled = false; mesh.renderOrder = 4; stateGroup.add(mesh)
       stateCells = { mesh, cells, geo }
       setCountyLabels((counties.counties || []).slice(0, 7).map(c => ({ ...c, pos: toWorld(c.lat, c.lon, 70_000) })))
       setGridInfo({ n: cells.length, max })
@@ -395,11 +398,12 @@ export default function EarthTour() {
     })
     renderer.domElement.addEventListener('click', e => {
       const c = pickCell(e); if (!c) return
-      api.current.fly({ id: 'cell', label: c.county, title: `${c.county} County hotspot`, target: 'Centre of this hotspot', lat: c.lat, lon: c.lon,
-        height: 1_600, tilt: 62, radius: 5, plume: true, note: `${(c.lbs / 1e6).toFixed(2)} M lbs applied in this ~8 km cell, 2020–2024, ${Math.round(100 * c.fumigant_lbs / c.lbs)}% fumigants.` })
+      const s = { id: 'cell', label: c.county + ' hotspot', title: `${c.county} County hotspot`, target: 'This hotspot', lat: c.hot_lat ?? c.lat, lon: c.hot_lon ?? c.lon,
+        height: 700, tilt: 64, radius: 3, plume: true, note: `${fmtLbs(c.lbs)} lbs applied in this ~8 km area, 2020–2024, ${Math.round(100 * c.fumigant_lbs / c.lbs)}% fumigants.` }
+      api.current.onCustom?.(s); api.current.fly(s)
     })
 
-    function clearOverlay() { stateGroup.clear(); stateCells = null; setCountyLabels([]); setHoverCell(null); overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
+    function clearOverlay() { stateToken++; stateGroup.clear(); stateCells = null; setCountyLabels([]); setHoverCell(null); overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
 
     async function buildOverlay(stop) {
       clearOverlay()
@@ -596,10 +600,20 @@ export default function EarthTour() {
   }, [])
 
   useEffect(() => { api.current.setWind?.(wind) }, [wind])
+  api.current.onCustom = setCustom // the map can add a clicked place as a stop
+  useEffect(() => {
+    const onFly = e => {
+      if (e.origin !== location.origin || e.data?.type !== 'askgaia-fly') return
+      const c = e.data, s = { id: 'cell', label: c.county + ' hotspot', title: `${c.county} County hotspot`, target: 'This hotspot', lat: c.lat, lon: c.lon,
+        height: 700, tilt: 64, radius: 3, plume: true, note: `${fmtLbs(c.lbs)} lbs applied in this ~8 km area, 2020–2024, ${Math.round(100 * (c.fumigant_lbs || 0) / (c.lbs || 1))}% fumigants.` }
+      setCustom(s); setView('satellite'); api.current.fly?.(s)
+    }
+    addEventListener('message', onFly); return () => removeEventListener('message', onFly)
+  }, [])
   useEffect(() => { // land on the satellite view, then morph into the town model
     const s = (custom ? [...STOPS, custom] : STOPS).find(x => x.id === active)
-    if (moving || !s?.plume) return
-    const id = setTimeout(() => setView('model'), 2200); return () => clearTimeout(id)
+    if (moving || !(s?.plume || s?.model)) return
+    const id = setTimeout(() => setView('model'), 900); return () => clearTimeout(id)
   }, [moving, active]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stops = custom ? [...STOPS, custom] : STOPS
@@ -751,7 +765,7 @@ export default function EarthTour() {
 
       {!atEarth && <div className="earth-zoom"><button type="button" aria-label="Zoom in" onClick={() => api.current.zoom?.(0.55)}>+</button><button type="button" aria-label="Zoom out" onClick={() => api.current.zoom?.(1.8)}>−</button></div>}
       {!atEarth && <p className="earth-hint">Scroll or pinch to zoom · Shift-drag or right-drag to tilt</p>}
-      {stop?.plume && !moving && (
+      {(stop?.plume || stop?.model) && !moving && (
         <>
           <iframe className={'earth-model' + (view === 'model' ? ' on' : '')} title={`${stop.label} drift model`} src={stop.model ? `/${stop.model}.html` : `/diorama-template.html?lat=${stop.lat}&lon=${stop.lon}&name=${encodeURIComponent(stop.title || stop.label || '')}`} tabIndex={view === 'model' ? 0 : -1} />
           <div className="earth-viewswitch" role="group" aria-label="View">
