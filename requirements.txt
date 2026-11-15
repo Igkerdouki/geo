@@ -18,3 +18,5 @@ psycopg[binary]>=3.2,<4
 mapbox-vector-tile>=2,<3
 
 reportlab>=4,<5
+
+PyJWT>=2.10,<3

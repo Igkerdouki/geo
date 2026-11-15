@@ -12,6 +12,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, timedelta
+import os
+import hmac
 import hashlib
 import secrets
 import jwt
@@ -20,11 +22,15 @@ from enum import Enum
 from app.database import get_connection
 from app.api.realtime import manager  # For broadcasting updates
 
-router = APIRouter()
+def require_auth_configuration():
+    if len(os.getenv('FARMER_JWT_SECRET',''))<32:
+        raise HTTPException(503,'Farmer accounts are unavailable until secure authentication is configured.')
+
+router = APIRouter(dependencies=[Depends(require_auth_configuration)])
 security = HTTPBearer(auto_error=False)
 
 # JWT Configuration
-JWT_SECRET = "geo-secret-key-change-in-production"
+JWT_SECRET = os.getenv('FARMER_JWT_SECRET')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
@@ -91,12 +97,20 @@ class SprayReportResponse(BaseModel):
 # ==================== HELPER FUNCTIONS ====================
 
 def hash_password(password: str) -> str:
-    """Hash password with salt"""
-    salt = "geo-salt"  # In production, use unique salt per user
-    return hashlib.sha256(f"{password}{salt}".encode()).hexdigest()
+    salt=secrets.token_hex(16)
+    digest=hashlib.pbkdf2_hmac('sha256',password.encode(),salt.encode(),600000).hex()
+    return f'pbkdf2_sha256${salt}${digest}'
+
+def password_matches(password: str, stored: str) -> bool:
+    if stored.startswith('pbkdf2_sha256$'):
+        _,salt,expected=stored.split('$')
+        return hmac.compare_digest(hashlib.pbkdf2_hmac('sha256',password.encode(),salt.encode(),600000).hex(),expected)
+    # Successful legacy login upgrades the old password hash immediately.
+    return hmac.compare_digest(hashlib.sha256((password+'geo-salt').encode()).hexdigest(),stored)
 
 def create_token(farmer_id: int, email: str) -> str:
     """Create JWT token"""
+    require_auth_configuration()
     payload = {
         "farmer_id": farmer_id,
         "email": email,
@@ -108,6 +122,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials) -> dict:
     """Verify JWT token and return payload"""
     if not credentials:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    require_auth_configuration()
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return payload
@@ -275,20 +290,23 @@ async def login_farmer(credentials: FarmerLogin):
     conn = get_connection()
     cursor = conn.cursor()
 
-    password_hash = hash_password(credentials.password)
 
     cursor.execute("""
-        SELECT id, farm_name, owner_name, county, active
+        SELECT id, farm_name, owner_name, county, active, password_hash
         FROM farmers
-        WHERE email = %s AND password_hash = %s
-    """, (credentials.email, password_hash))
+        WHERE email = %s
+    """, (credentials.email,))
 
     farmer = cursor.fetchone()
     cursor.close()
     conn.close()
 
-    if not farmer:
+    if not farmer or not password_matches(credentials.password,farmer["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not farmer["password_hash"].startswith("pbkdf2_sha256$"):
+        conn=get_connection();cur=conn.cursor()
+        cur.execute("UPDATE farmers SET password_hash=%s WHERE id=%s",(hash_password(credentials.password),farmer["id"]))
+        conn.commit();cur.close();conn.close()
 
     if not farmer["active"]:
         raise HTTPException(status_code=403, detail="Account is deactivated")
