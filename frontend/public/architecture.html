@@ -77,14 +77,41 @@ aside{display:grid;gap:14px;align-content:start}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 footer{color:var(--faint);font-size:12px;max-width:90ch}
 @media(prefers-reduced-motion:reduce){.node.on rect{filter:none}}
+/* ---- pop in / pop out ---- */
+.board{position:relative;perspective:1400px}
+.scroller{transform:rotateX(0);transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.node{transform-box:fill-box;transform-origin:center;transition:transform .5s cubic-bezier(.34,1.7,.5,1),opacity .45s ease}
+.node rect{transition:fill .35s,stroke .35s}
+.node:hover{transform:scale(1.07)}
+.node.on{transform:scale(1.13)}
+.node.on rect{fill:#143128}
+.node.hit{transform:scale(1.24)!important;transition-duration:.18s}
+.running .node:not(.on):not(.sel){opacity:.32}
+.running .edge:not(.hot){opacity:.25}
+.edge{transition:opacity .45s,stroke .35s}
+.edge.hot{stroke-dasharray:6 6;animation:flow .7s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-12}}
+.pre .node{transform:scale(0);opacity:0}
+.pre .edge{stroke-dashoffset:var(--L);stroke-dasharray:var(--L)}
+.edge.draw{transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1),opacity .45s}
+.burst{fill:none;stroke:var(--green);stroke-width:2;pointer-events:none}
+.pop{position:absolute;z-index:5;left:50%;top:50%;width:min(440px,86%);background:linear-gradient(160deg,rgba(28,58,47,.97),rgba(10,24,20,.97));border:1px solid var(--mint);border-radius:20px;padding:22px 24px 20px;box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 1px rgba(185,249,114,.08),0 0 60px rgba(116,227,187,.18);transform:translate(-50%,-50%) scale(.2);opacity:0;pointer-events:none;transition:transform .55s cubic-bezier(.34,1.56,.5,1),opacity .3s}
+.pop.open{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
+.pop .k{font:500 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--mint)}
+.pop h3{font:600 26px/1.1 var(--display);letter-spacing:-.02em;margin:8px 0 10px}
+.pop p{color:var(--dim);margin:0 0 14px}
+.pop .x{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--text);cursor:pointer;font-size:16px}
+.veil{position:absolute;inset:0;z-index:4;background:rgba(4,10,8,.45);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .35s}
+.veil.open{opacity:1;pointer-events:auto}
+@media(prefers-reduced-motion:reduce){.node,.pop,.edge{transition:none!important;animation:none!important}}
 </style>
 
 <div class="wrap">
   <header>
     <div>
       <div class="eyebrow">askgaia · how it works</div>
-      <h1>Two MCP servers. Fourteen tools. <em>One question.</em></h1>
-      <p class="lede">Press play to watch a question travel through askgaia: the investigator agent calls tools on two MCP servers, and every answer comes back with its sources and limits. Click any box to see what it does.</p>
+      <h1>Follow a question <em>through askgaia.</em></h1>
+      <p class="lede">Press play to watch a question travel through askgaia: the investigator agent calls tools on two MCP servers, and every answer comes back with its sources and limits. Click any box to pop it open.</p>
     </div>
     <div class="scen" role="group" aria-label="Scenario">
       <button id="sc0" aria-pressed="true">Ask about a school</button>
@@ -94,6 +121,8 @@ footer{color:var(--faint);font-size:12px;max-width:90ch}
 
   <div class="stage">
     <section class="board" aria-label="Animated architecture diagram">
+      <div class="veil" id="veil"></div>
+      <div class="pop" id="pop" role="dialog" aria-modal="false" aria-labelledby="popT"><button class="x" id="popX" aria-label="Close">×</button><div class="k" id="popK"></div><h3 id="popT"></h3><p id="popP"></p><dl class="kv" id="popKV"></dl><div class="chips" id="popC"></div></div>
             <div class="scroller"><svg id="svg" viewBox="0 50 1280 700" role="img" aria-label="askgaia architecture: users, interfaces, agent, two MCP servers, agents, MCP tools and data sources">
         <defs>
           <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
@@ -203,7 +232,7 @@ for(const k in N){const n=N[k];const g=mk('g',{class:'node',tabindex:0,role:'but
   mk('rect',{x:n.x,y:n.y,width:n.w,height:n.h,rx:12},g);
   mk('text',{x:n.x+14,y:n.y+(n.h>50?24:19)},g).textContent=n.t;
   mk('text',{x:n.x+14,y:n.y+(n.h>50?42:34),class:'sub'},g).textContent=n.s;
-  g.addEventListener('click',()=>select(k));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(k)}});
+  g.addEventListener('click',()=>{select(k);popOpen(k)});g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(k)}});
   nodeEl[k]=g}
 let selected='orch';
 function select(k){nodeEl[selected]?.classList.remove('sel');selected=k;nodeEl[k].classList.add('sel');const n=N[k];
@@ -211,6 +240,20 @@ function select(k){nodeEl[selected]?.classList.remove('sel');selected=k;nodeEl[k
   $('infoKV').innerHTML=Object.entries(n.kv||{}).map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
   $('infoChips').innerHTML=(n.chips||[]).map(c=>`<span>${c}</span>`).join('')}
 function $(id){return document.getElementById(id)}
+const board=document.querySelector('.board');
+function popOpen(k){const n=N[k],r=nodeEl[k].getBoundingClientRect(),b=board.getBoundingClientRect(),pop=$('pop');
+  pop.style.transformOrigin=`${r.left+r.width/2-b.left-pop.offsetLeft+pop.offsetWidth/2}px ${r.top+r.height/2-b.top-pop.offsetTop+pop.offsetHeight/2}px`;
+  $('popK').textContent=n.kind;$('popT').textContent=n.t;$('popP').textContent=n.p;
+  $('popKV').innerHTML=Object.entries(n.kv||{}).map(([a,v])=>`<dt>${a}</dt><dd>${v}</dd>`).join('');
+  $('popC').innerHTML=(n.chips||[]).map(c=>`<span>${c}</span>`).join('');
+  pop.classList.add('open');$('veil').classList.add('open');wasPlaying=playing;if(playing)pause()}
+let wasPlaying=false;
+function popClose(){$('pop').classList.remove('open');$('veil').classList.remove('open');if(wasPlaying){wasPlaying=false;play()}}
+$('veil').onclick=popClose;$('popX').onclick=popClose;addEventListener('keydown',e=>{if(e.key==='Escape')popClose()});
+function burst(k){const n=N[k];const c=mk('circle',{cx:n.x+n.w/2,cy:n.y+n.h/2,r:Math.max(n.w,n.h)/2,class:'burst'},gP);
+  nodeEl[k].classList.add('hit');setTimeout(()=>nodeEl[k].classList.remove('hit'),200);
+  if(reduce){c.remove();return}const t0=performance.now();
+  const f=now=>{const q=Math.min(1,(now-t0)/600);c.setAttribute('r',Math.max(n.w,n.h)/2+q*40);c.setAttribute('opacity',1-q);if(q<1)requestAnimationFrame(f);else c.remove()};requestAnimationFrame(f)}
 
 let sc=0,step=0,playing=false,speed=1,anim=null;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function edgeFor(a,b){return paths[a+'>'+b]?{p:paths[a+'>'+b],rev:false}:{p:paths[b+'>'+a],rev:true}}
@@ -225,9 +268,9 @@ function runStep(done){renderStep();cancelAnimationFrame(anim);gP.innerHTML='';
     const h=hops[i++],{p,rev}=edgeFor(h[0],h[1]),back=!!h[2];const L=p.getTotalLength();
     const dot=mk('circle',{r:9,fill:back?'url(#pkr)':'url(#pk)'},gP);const t0=performance.now();
     const tick=now=>{let f=Math.min(1,(now-t0)/(dur/speed));const e=f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;const pt=p.getPointAtLength((rev?1-e:e)*L);dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
-      if(f<1)anim=requestAnimationFrame(tick);else{dot.remove();next()}};anim=requestAnimationFrame(tick)};
+      if(f<1)anim=requestAnimationFrame(tick);else{dot.remove();burst(h[1]);next()}};anim=requestAnimationFrame(tick)};
   next()}
-function play(){playing=true;$('play').textContent='❚❚ Pause';const go=()=>{if(!playing)return;runStep(()=>{if(!playing)return;setTimeout(()=>{if(!playing)return;if(step<S[sc].steps.length-1){step++;go()}else{playing=false;$('play').textContent='↺ Replay'}},(reduce?400:900)/speed)})};go()}
+function play(){playing=true;board.classList.add('running');$('play').textContent='❚❚ Pause';const go=()=>{if(!playing)return;runStep(()=>{if(!playing)return;setTimeout(()=>{if(!playing)return;if(step<S[sc].steps.length-1){step++;go()}else{playing=false;$('play').textContent='↺ Replay'}},(reduce?400:900)/speed)})};go()}
 function pause(){playing=false;$('play').textContent='▶ Play'}
 $('play').onclick=()=>{if(playing)pause();else{if($('play').textContent.includes('Replay'))step=0;play()}};
 $('next').onclick=()=>{pause();step=Math.min(step+1,S[sc].steps.length-1);runStep()};
@@ -235,7 +278,15 @@ $('prev').onclick=()=>{pause();step=Math.max(step-1,0);runStep()};
 $('ticks').onclick=e=>{const i=e.target.dataset.i;if(i!=null){pause();step=+i;runStep()}};
 $('spd').oninput=e=>speed=+e.target.value;
 [0,1].forEach(i=>$('sc'+i).onclick=()=>{pause();sc=i;step=0;[0,1].forEach(j=>$('sc'+j).setAttribute('aria-pressed',String(j===i)));renderStep();play()});
-select('d_neon');renderStep();setTimeout(play,600);
+select('d_neon');
+Object.values(paths).forEach(p=>{p.style.setProperty('--L',p.getTotalLength())});
+if(!reduce){board.classList.add('pre');
+  const intro=()=>{board.classList.remove('pre');
+    Object.entries(nodeEl).sort((a,b)=>N[a[0]].x-N[b[0]].x||N[a[0]].y-N[b[0]].y).forEach(([k,g],i)=>{g.style.transitionDelay=(i*45)+'ms';setTimeout(()=>g.style.transitionDelay='',i*45+700)});
+    Object.values(paths).forEach((p,i)=>{p.classList.add('draw');p.style.transitionDelay=(300+i*18)+'ms';setTimeout(()=>{p.style.transitionDelay='';p.classList.remove('draw')},1600+i*18)});
+    renderStep();setTimeout(play,1500)};
+  const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){io.disconnect();intro()}},{threshold:.25});io.observe(board);
+} else {renderStep();setTimeout(play,600)}
 })();
 </script>
 
