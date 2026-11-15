@@ -778,8 +778,9 @@ export default function EarthTour() {
         <b>{fmtLbs(hoverCell.lbs)} lbs</b><span>{hoverCell.county} County · 2020–2024</span><span>{Math.round(100 * hoverCell.fumigant_lbs / hoverCell.lbs)}% fumigants · click to fly in</span></div>}
       <div className="earth-tag" ref={tagRef}>{pinLabel || stop?.target}</div>
       {!KEY && view !== 'model' && (
-        <div className="earth-missing"><h2>Add a Google Maps key to see photorealistic 3D</h2>
-          <p>Put <code>VITE_GOOGLE_MAPS_KEY=…</code> in <code>frontend/.env.local</code>, then restart <code>npm run dev</code>.</p></div>
+        <div className="earth-missing"><h2>Satellite view is temporarily unavailable</h2>
+          <p>Google Maps is not configured for this deployment. You can still explore a location in Model view.</p>
+          {import.meta.env.DEV && <p>Local setup: add <code>VITE_GOOGLE_MAPS_KEY</code> to <code>frontend/.env.local</code>, then restart the app.</p>}</div>
       )}
       {!embed && <header className="earth-head">
         <a className="earth-brand" href="/earth" onClick={e => { e.preventDefault(); go(STOPS[0]) }}><span className="earth-dot" />askgaia</a>
