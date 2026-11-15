@@ -98,12 +98,23 @@ def compact(value):
     return value
 
 
+def mcp_server_parameters(module):
+    """Propagate runtime-added dependency paths into stdio children (Vercel)."""
+    env = dict(os.environ)
+    # Python child interpreters do not inherit sys.path changes from the host.
+    # Resolve paths before changing cwd to backend, preserving vendor packages.
+    paths = [str(BACKEND_ROOT), *(os.path.abspath(p or os.getcwd()) for p in sys.path)]
+    paths.extend(p for p in env.get('PYTHONPATH', '').split(os.pathsep) if p)
+    env['PYTHONPATH'] = os.pathsep.join(dict.fromkeys(paths))
+    return StdioServerParameters(command=sys.executable, args=['-m', module],
+                                 cwd=str(BACKEND_ROOT), env=env)
+
+
 class MCPTools:
     async def __aenter__(self):
         self.stack = AsyncExitStack(); await self.stack.__aenter__(); self.tools = {}; self.sessions = {}
         try:
-            streams = await self.stack.enter_async_context(stdio_client(StdioServerParameters(
-                command=sys.executable, args=['-m','app.mcp_server'], cwd=str(BACKEND_ROOT), env=dict(os.environ))))
+            streams = await self.stack.enter_async_context(stdio_client(mcp_server_parameters('app.mcp_server')))
             geo = await self.stack.enter_async_context(ClientSession(*streams)); await geo.initialize()
             for tool in (await geo.list_tools()).tools:
                 self.tools[tool.name] = tool; self.sessions[tool.name] = (geo, tool.name)
@@ -124,8 +135,7 @@ class MCPTools:
                     self.epa_status='Configured EPA MCP server unavailable'
             else:
                 try:
-                    streams=await self.stack.enter_async_context(stdio_client(StdioServerParameters(
-                        command=sys.executable,args=['-m','app.epa_mcp_server'],cwd=str(BACKEND_ROOT),env=dict(os.environ))))
+                    streams=await self.stack.enter_async_context(stdio_client(mcp_server_parameters('app.epa_mcp_server')))
                     epa=await self.stack.enter_async_context(ClientSession(*streams)); await epa.initialize()
                     for tool in (await epa.list_tools()).tools:
                         if tool.name in {'air_quality','drinking_water'}:

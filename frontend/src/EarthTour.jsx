@@ -263,11 +263,11 @@ export default function EarthTour() {
     let ingredientDemo=false,ingredientFrame=null,ingredientHidden=[],demoWind=null;
     const ingredientLayer=transportLayer(THREE,overlay,(lat,lon)=>{const [x,y]=local(lat,lon);return new THREE.Vector3(x,y,(site?.ground||0)+50)});
     function sendIngredients(){modelFrame.current?.contentWindow?.postMessage({type:'askgaia-ingredients',frame:ingredientFrame,hidden:ingredientHidden,wind:demoWind},location.origin)}
-    const removeDemo=mountTransportDemo({getLocation:()=>site?{lat:site.stop.lat,lon:site.stop.lon}:null,
+    const removeDemo=mountTransportDemo({getWind:()=>windNow,getLocation:()=>site?{lat:site.stop.lat,lon:site.stop.lon}:null,
       onWind:w=>{demoWind=w;weatherRequest.current?.abort();setWindSrc('Demo scenario');setWind(w)},
       onFrame:(frame,hidden)=>{ingredientFrame=frame;ingredientHidden=hidden;ingredientLayer.draw(frame,hidden);sendIngredients()},onActive:v=>{ingredientDemo=v;paintPlume()}});
     api.current.clearDemo=()=>removeDemo.reset(true);
-    function demoReady(e){if(e.origin===location.origin&&e.source===modelFrame.current?.contentWindow&&e.data?.type==='askgaia-model-ready')sendIngredients()}
+    function demoReady(e){if(e.origin===location.origin&&e.source===modelFrame.current?.contentWindow&&e.data?.type==='gaia-release-preset')window.dispatchEvent(new CustomEvent('gaia-release-preset',{detail:{speed:e.data.speed}}));if(e.origin===location.origin&&e.source===modelFrame.current?.contentWindow&&e.data?.type==='askgaia-model-ready')sendIngredients()}
     window.addEventListener('message',demoReady);
 
     let blds = null // { mesh, colors, items:[{start,count,x,y}] }
@@ -739,14 +739,27 @@ export default function EarthTour() {
     if (!q) return
     setSearchMsg('Searching…')
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&viewbox=-124.5,42.1,-114.1,32.5&bounded=1&q=${encodeURIComponent(q)}`
+      const questionLike=/\?|\b(is|are|does|do|can|should|why|how|what|allergic|allergies|pesticides|safe|bad)\b/i.test(q)
+      let placeQuery=q,askQuestion=false
+      if(questionLike){
+        const response=await fetch('/api/gaia/search-place',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})})
+        const parsed=await response.json()
+        if(!response.ok)throw Error(parsed.detail||'Question search unavailable.')
+        if(!parsed.place){setSearchMsg('Which California city, school or neighborhood do you mean?');return}
+        placeQuery=parsed.place;askQuestion=parsed.is_question
+      }
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&viewbox=-124.5,42.1,-114.1,32.5&bounded=1&q=${encodeURIComponent(placeQuery)}`
       const hit = (await (await fetch(url)).json())[0]
       if (!hit) { setSearchMsg('No match in California. Try a town, school or street address.'); return }
       const name = hit.display_name.split(',').slice(0, 2).join(',')
       const s = { id: 'search', label: name, title: name, target: name, lat: +hit.lat, lon: +hit.lon, height: 520, tilt: 68, radius: 4, plume: true,
         note: 'Recorded pesticide use within 4 km and a modelled drift scenario from the most heavily treated nearby section.' }
       setCustom(s); setSearchMsg(''); go(s)
-    } catch { setSearchMsg('Search is unavailable right now.') }
+      if(askQuestion){
+        const msg={type:'gaia-question',question:q,context:{location:{name,lat:s.lat,lon:s.lon},scenario:null}}
+        window.postMessage(msg,location.origin);if(parent!==window)parent.postMessage(msg,location.origin)
+      }
+    } catch(err) { setSearchMsg(err.message||'Search is unavailable right now.') }
   }
 
   function liveWind() { setWeatherRefresh(n => n + 1) }

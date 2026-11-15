@@ -84,6 +84,7 @@ class SprayScenario(InputModel):
     location_uncertainty_m: float = Field(ge=0, le=10000)
     duration_minutes: int = Field(ge=1, le=120)
     horizon_minutes: int = Field(default=60, ge=1, le=120)
+    deposition_map: bool = False
     snapshot_interval_minutes: int = Field(default=5, ge=1, le=5)
     ingredients: list[Ingredient] = Field(min_length=1, max_length=10)
     wind: list[WindStep] | None = Field(default=None, min_length=1, max_length=121)
@@ -176,6 +177,41 @@ def dispersion_footprints(parcels, request, minute):
     return {'type':'FeatureCollection','features':features}
 
 
+def deposit_on_grid(grid, index, mass, start, end, sigma, cell):
+    """Conservative screening raster: distribute removed mass along a step.
+
+    A normalized two-sigma Gaussian kernel approximates lateral spreading.
+    This is an assumed ground-loading estimate, not a measured residue map.
+    """
+    if mass <= 0: return
+    steps = min(32, max(1, math.ceil(math.dist(start, end) / cell)))
+    sigma = max(cell / 2, sigma)
+    for step in range(steps):
+        t = (step + .5) / steps
+        x, y = (start[i] + t * (end[i] - start[i]) for i in range(2))
+        radius = math.ceil(2 * sigma / cell)
+        cx, cy = math.floor(x / cell), math.floor(y / cell)
+        weights = []
+        for gx in range(cx-radius, cx+radius+1):
+            for gy in range(cy-radius, cy+radius+1):
+                weight = math.exp(-(((gx+.5)*cell-x)**2+((gy+.5)*cell-y)**2)/(2*sigma*sigma))
+                weights.append(((index,gx,gy), weight))
+        total = sum(w for _,w in weights)
+        for key, weight in weights:
+            grid[key] = grid.get(key, 0) + mass / steps * weight / total
+
+
+def deposition_features(grid, request, cell, scale):
+    features = []
+    for (index, x, y), mass in grid.items():
+        ring = [[request.source_lon+gx*cell/scale, request.source_lat+gy*cell/111320]
+                for gx,gy in [(x,y),(x+1,y),(x+1,y+1),(x,y+1),(x,y)]]
+        features.append({'type':'Feature','geometry':{'type':'Polygon','coordinates':[ring]},
+            'properties':{'ingredient':request.ingredients[index].name, 'deposited_kg':mass,
+                          'loading_mg_m2':mass*1e6/(cell*cell)}})
+    return {'type':'FeatureCollection','features':features}
+
+
 def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dict:
     location = california_location(request.source_lat, request.source_lon)
     start = request.start_at.astimezone(timezone.utc)
@@ -203,6 +239,8 @@ def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dic
     # timing for a new parcel, then full minutes for subsequent transport.
     parcels = []
     snapshots = []
+    deposition_grid = {}
+    cell_size = max(50, math.sqrt(2*(request.physics.horizontal_diffusivity_m2_s if request.physics else 2)*request.horizon_minutes*60)/8)
     deposited = [0.0] * len(request.ingredients)
     degraded = [0.0] * len(request.ingredients)
     released = [0.0] * len(request.ingredients)
@@ -220,6 +258,7 @@ def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dic
         for parcel in parcels:
             dt = 0.5 if parcel['born'] == minute else 1.0
             height_factor=(physics.release_height_m/10)**physics.wind_height_exponent if physics else 1
+            previous_position = (parcel['east'], parcel['north'])
             parcel['east'] += wind.speed_ms * height_factor * 60 * dt * math.sin(angle)
             parcel['north'] += wind.speed_ms * height_factor * 60 * dt * math.cos(angle)
             if math.hypot(parcel['east'],parcel['north'])>30000:
@@ -255,6 +294,10 @@ def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dic
             if rate:
                 degraded[parcel['index']] += removed * decay/rate
                 deposited[parcel['index']] += removed * deposit/rate
+                if request.deposition_map:
+                    sigma = math.sqrt(4+2*(physics.horizontal_diffusivity_m2_s if physics else 2)*(minute+0.5-parcel['born'])*60)
+                    deposit_on_grid(deposition_grid, parcel['index'], removed*deposit/rate,
+                                    previous_position, (parcel['east'],parcel['north']), sigma, cell_size)
                 parcel['vapor'] += removed * vaporize/rate
             parcel['mass'] -= removed
         if (minute+1) % request.snapshot_interval_minutes == 0 or minute+1 == request.horizon_minutes:
@@ -270,6 +313,7 @@ def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dic
                     request.source_lon+parcel['east']/scale, request.source_lat+parcel['north']/111320]},
                     'properties':{'ingredient':request.ingredients[parcel['index']].name,
                         'color':['#a6ffe0','#edc16b','#7fc9ff','#e9a4ce','#c1b4ff'][parcel['index']%5],
+                        'sigma_m':math.sqrt(4+2*(physics.horizontal_diffusivity_m2_s if physics else 2)*(minute+0.5-parcel['born'])*60),
                         'airborne_kg':parcel['mass']+parcel['vapor'], 'vapor_kg':parcel['vapor'],
                         'droplet_diameter_um':parcel['diameter'], 'release_minute':parcel['born']}})
             receptors=[]
@@ -280,6 +324,7 @@ def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dic
                             'concentration_ug_m3':sum(puff_concentration(p,receptor,request,minute+1) for p in parcels if p['index']==index)})
             snapshots.append({'minute':minute+1, 'at':(start+timedelta(minutes=minute+1)).isoformat(),
                 'parcels':{'type':'FeatureCollection', 'features':features}, 'mass_balance':budgets,'receptors':receptors,
+                'deposition':deposition_features(deposition_grid,request,cell_size,scale),
                 'footprints':dispersion_footprints(parcels,request,minute+1)})
     result={'label':'modelled', 'engine':'Gaussian puff / mixed-layer removal screening' if physics else 'Passive tracer advection with assumed first-order removal',
         'event':request.model_dump(mode='json', exclude={'wind'}), 'location':location,
@@ -294,7 +339,7 @@ def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dic
             'Terrain is an optional planar grade, not a terrain dataset or building airflow solver. No chemical reaction products or resuspension.',
             'No chemical parameters inferred from Neon; missing half-lives mean removal is disabled.',
             'Ensemble ranges, when requested, are sensitivity ranges rather than probabilities. Weather represents one location.',
-            'Deposited mass is cumulative only; no deposition footprint is predicted.']}
+            'Ground loading, when enabled, distributes removed mass along parcel paths with a normalized Gaussian kernel; assumed screening deposition, not measured residue. No resuspension or surface-specific retention.']}
     if request.uncertainty and _ensemble:
         result['uncertainty']=ensemble(request,result,weather)
     return result
