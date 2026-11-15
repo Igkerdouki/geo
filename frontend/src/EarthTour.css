@@ -6,8 +6,8 @@
 .earth-canvas canvas:active{cursor:grabbing}
 
 .earth-head{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:22px 36px;background:linear-gradient(180deg,rgba(5,8,7,.7),transparent);pointer-events:none;z-index:3}
-.earth-brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:19px;letter-spacing:-.01em;color:var(--white);text-decoration:none;pointer-events:auto}
-.earth-dot{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,var(--mint),var(--leaf) 60%,var(--green));box-shadow:0 0 12px rgba(127,227,168,.6)}
+.earth-brand{display:flex;align-items:center;font-family:Montserrat,sans-serif;font-weight:400;font-size:17px;letter-spacing:.55em;text-transform:uppercase;color:var(--white);text-decoration:none;pointer-events:auto}
+.earth-dot{display:none;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,var(--mint),var(--leaf) 60%,var(--green));box-shadow:0 0 12px rgba(127,227,168,.6)}
 .earth-nav{display:flex;align-items:center;gap:30px;font-size:13px;font-weight:500;pointer-events:auto}
 .earth-nav a{color:var(--white);text-decoration:none;opacity:.8}
 .earth-nav a:hover{opacity:1;color:var(--mint)}
