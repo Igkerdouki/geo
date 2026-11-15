@@ -7,7 +7,7 @@ import { PbfReader } from 'pbf'
 import { TilesRenderer, GlobeControls } from '3d-tiles-renderer'
 import {
   GoogleCloudAuthPlugin, TileCompressionPlugin, UpdateOnChangePlugin,
-  UnloadTilesPlugin, TilesFadePlugin, GLTFExtensionsPlugin,
+  TilesFadePlugin, GLTFExtensionsPlugin,
 } from '3d-tiles-renderer/plugins'
 import './EarthTour.css'
 
@@ -17,20 +17,21 @@ const M = 111_320
 
 // Tour stops. Stops with `radius` pull real treated sections from /api/spatial/sections.
 const STOPS = [
-  { id: 'earth', label: 'Earth', lat: 22, lon: -118, height: 11_500_000, tilt: 0 },
-  { id: 'ca', label: 'California', lat: 36.8, lon: -119.4, height: 900_000, tilt: 0,
-    title: 'California', note: '11 years of recorded pesticide use, every county.' },
-  { id: 'fresno', label: 'Fresno County', lat: 36.7378, lon: -119.7871, height: 520, tilt: 68, radius: 6,
-    title: 'Fresno County', note: 'Downtown Fresno. The county applied the most pesticide in California: 123 M lbs, 2020–2024.' },
-  { id: 'arvin', label: 'Arvin · Lamont', lat: 35.2091, lon: -118.8284, height: 560, tilt: 68, radius: 4, plume: true,
-    title: 'Arvin, Kern County', target: 'Arvin town centre',
+  { id: 'earth', label: 'Earth', lat: 30, lon: -118, height: 7_600_000, tilt: 0 },
+  { id: 'ca', label: 'California', lat: 36.3, lon: -119.9, height: 360_000, tilt: 52, state: true,
+    title: 'California', note: 'Where pesticide is applied across the state. The Central Valley, Salinas and the Santa Maria coast rise highest.' },
+  { id: 'fresno', model: 'biola', label: 'Biola · Fresno County', lat: 36.80457, lon: -120.01737, height: 700, tilt: 64, radius: 4, plume: true,
+    title: 'Biola-Pershing Elementary, Fresno County', target: 'Biola-Pershing Elementary',
+    note: 'A farm town in the county that applies the most pesticide in California (123 M lbs, 2020–2024). 1.26 M lbs within 1.25 km of this school.' },
+  { id: 'arvin', model: 'arvin', label: 'Arvin · Lamont', lat: 35.2045, lon: -118.8317, height: 560, tilt: 68, radius: 4, plume: true,
+    title: 'Arvin High School, Kern County', target: 'Arvin High School',
     note: 'Fumigant hotspot. A 2002 metam-sodium drift here sickened 252 people.' },
-  { id: 'salinas', label: 'Salinas · Alisal High', lat: 36.6835, lon: -121.6004, height: 520, tilt: 68, radius: 4, plume: true,
+  { id: 'salinas', model: 'salinas', label: 'Salinas · Alisal High', lat: 36.6835, lon: -121.6004, height: 520, tilt: 68, radius: 4, plume: true,
     title: 'Alisal High School, Salinas', target: 'Alisal High School',
     note: 'Salinas Valley strawberry and lettuce fields, heavily fumigated.' },
-  { id: 'oxnard', label: 'Oxnard Plain', lat: 34.205, lon: -119.205, height: 560, tilt: 68, radius: 5, plume: true,
-    title: 'Oxnard Plain, Ventura County', target: 'Oxnard homes',
-    note: 'Home to the single most fumigated square mile in California.' },
+  { id: 'oxnard', model: 'oxnard', label: 'Oxnard Plain', lat: 34.2513, lon: -119.1495, height: 560, tilt: 68, radius: 5, plume: true,
+    title: 'Rio Mesa High School, Oxnard Plain', target: 'Rio Mesa High School',
+    note: '4.31 M lbs applied within 1.25 km of this school, 2020–2024; 3.43 M of it fumigants. The heaviest of our schools.' },
 ]
 
 // Briggs rural dispersion, same model as the backend run_plume tool
@@ -49,6 +50,33 @@ function conc(dx, dy, w) { // metres east/north of the source
 }
 const RAMP = [[0, [46, 168, 110]], [0.35, [130, 222, 150]], [0.6, [241, 214, 120]], [0.8, [245, 150, 70]], [1, [229, 62, 62]]]
 const ramp = v => { for (let i = 1; i < RAMP.length; i++) if (v <= RAMP[i][0]) { const [a, ca] = RAMP[i - 1], [b, cb] = RAMP[i], f = (v - a) / (b - a); return ca.map((c, k) => c + (cb[k] - c) * f) } return RAMP[4][1] }
+// Drift palette (golden hour): gold at the thin edge, ember, then red where the plume is dense
+const WARM = [[0, [255, 199, 115]], [0.4, [232, 130, 58]], [0.75, [194, 54, 43]], [1, [168, 32, 30]]]
+const warm = v => { for (let i = 1; i < WARM.length; i++) if (v <= WARM[i][0]) { const [a, ca] = WARM[i - 1], [b, cb] = WARM[i], f = (v - a) / (b - a); return ca.map((c, k) => c + (cb[k] - c) * f) } return WARM[3][1] }
+const logv = (c, ref) => c > 0 ? Math.max(0, Math.min(1, 1 + Math.log10(c / ref) / 2.6)) : 0 // same 1.0 = 150 m downwind scale as the readout
+const gauss = () => { let u = 0; while (!u) u = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()) }
+// Soft volumetric plume: camera-facing sprites, each a noisy puff whose brightness is set from conc()
+const PUFF_VS = `attribute vec3 iPos; attribute float iSize; attribute vec4 iCol; attribute float iSeed;
+uniform float uTime; varying vec2 vUv; varying vec4 vCol; varying float vSeed;
+void main(){
+  vUv = position.xy; vCol = iCol; vSeed = iSeed;
+  float a = iSeed * 6.2832 + uTime * 0.05 * (fract(iSeed * 7.31) - 0.5);
+  vec4 mv = modelViewMatrix * vec4(iPos, 1.0);
+  mv.xy += mat2(cos(a), sin(a), -sin(a), cos(a)) * position.xy * iSize;
+  gl_Position = projectionMatrix * mv;
+}`
+const PUFF_FS = `uniform float uTime; varying vec2 vUv; varying vec4 vCol; varying float vSeed;
+float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+void main(){
+  float r = length(vUv) * 2.0;
+  if (r > 1.0 || vCol.a < 0.002) discard;
+  vec2 q = vUv * 2.4 + vSeed * 13.7;
+  float tex = 0.62 * n(q + uTime * 0.07) + 0.38 * n(q * 2.13 - uTime * 0.11);
+  float a = (exp(-r * r * 4.0) - 0.02) * (0.3 + 0.7 * tex) * vCol.a * 0.32;
+  gl_FragColor = vec4(vCol.rgb, max(a, 0.0));
+}`
 // Building footprints with heights from OpenStreetMap, served as vector tiles by OpenFreeMap
 const OFM = 'https://tiles.openfreemap.org/planet/20261101_080013_pt/{z}/{x}/{y}.pbf'
 const tileOf = (lat, lon, z) => { const n = 2 ** z, x = (lon + 180) / 360 * n, s = Math.log(Math.tan(Math.PI / 4 + lat * D2R / 2)); return [Math.floor(x), Math.floor((1 - s / Math.PI) / 2 * n)] }
@@ -78,11 +106,39 @@ async function fetchBuildings(lat, lon, radiusM) {
   return out
 }
 
+// Home-screen facts, one at a time (Earth Stats style). Sources shown with each.
+const FACTS = [
+  { topic: 'California', value: 1_919_790_000, unit: 'lbs', count: true,
+    text: 'of pesticides recorded by the state from 2014 to 2024, the most recent year released. About 430,000 lbs a day.',
+    source: 'California Department of Pesticide Regulation, Pesticide Use Reports' },
+  { topic: 'Children', value: '+36%', unit: '',
+    text: 'more pediatric brain and nervous-system cancers, and 23% more leukemia, linked to a 10% rise in agrichemical exposure.',
+    source: 'University of Nebraska Medical Center, 2025 · association, not proof of cause' },
+  { topic: 'In one line', quote: '“The same industrial farming system… is also quietly cooking the planet.”',
+    source: 'Dr. Lee Evslin, pediatrician, The New Lede, July 2026' },
+  { topic: 'Climate', value: '10×', unit: 'energy',
+    text: 'more energy to manufacture a kilogram of pesticide than a kilogram of nitrogen fertilizer.',
+    source: 'As reported by Dr. Lee Evslin, The New Lede, July 2026' },
+  { topic: 'Climate', value: '273×', unit: 'CO₂',
+    text: 'the warming power of nitrous oxide from farm fertilizer. Agricultural N₂O rose 40% from 1980 to 2020.',
+    source: 'UN Environment Programme' },
+  { topic: 'Planet', value: '16 billion', unit: 'tonnes CO₂e',
+    text: 'emitted every year by the world’s food systems, about a third of all human-caused emissions.',
+    source: 'UN Food and Agriculture Organization; Nature' },
+]
+
+// deep teal → amber → ember → red: readable over satellite imagery
+const HEAT = k => { const s = [[0, [0.05, 0.35, 0.33]], [0.35, [0.95, 0.72, 0.25]], [0.7, [0.93, 0.38, 0.13]], [1, [0.78, 0.1, 0.1]]]
+  for (let i = 1; i < s.length; i++) if (k <= s[i][0]) { const [a, ca] = s[i - 1], [b, cb] = s[i], f = (k - a) / (b - a); return ca.map((c, j) => c + (cb[j] - c) * f) } return s[3][1] }
+const fmtLbs = n => n >= 1e6 ? (n / 1e6).toFixed(2) + ' M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n)
+
 const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + ' M' : n >= 1e3 ? Math.round(n / 1e3) + ' k' : String(n)
 
 export default function EarthTour() {
   const mount = useRef(null), api = useRef({}), tagRef = useRef(null)
-  const [active, setActive] = useState('earth')
+  const embed = new URLSearchParams(location.search).has('embed')
+  const deep = (() => { const s = new URLSearchParams(location.search); return s.get('q') || s.get('stop') || (embed ? 'embed' : null) })()
+  const [active, setActive] = useState(deep ? 'arriving' : 'earth')
   const [custom, setCustom] = useState(null)
   const [credits, setCredits] = useState('')
   const [moving, setMoving] = useState(false)
@@ -93,7 +149,26 @@ export default function EarthTour() {
   const [query, setQuery] = useState('')
   const [searchMsg, setSearchMsg] = useState('')
   const [count, setCount] = useState(0)
+  const [fact, setFact] = useState(0)
+  const [factHold, setFactHold] = useState(false)
+  useEffect(() => {
+    if (factHold || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = setInterval(() => setFact(f => (f + 1) % FACTS.length), 8000)
+    return () => clearInterval(id)
+  }, [factHold])
   const [buildingCount, setBuildingCount] = useState(0)
+  const [pinLabel, setPinLabel] = useState('')
+  const [view, setView] = useState('satellite') // 'satellite' | 'model'
+  const [countyLabels, setCountyLabels] = useState([])
+  const [hoverCell, setHoverCell] = useState(null)
+  const [gridInfo, setGridInfo] = useState(null)
+  const labelRefs = useRef([])
+  const dialRef = useRef(null)
+  function dragDial(e) {
+    const el = dialRef.current; if (!el) return
+    const r = el.getBoundingClientRect(), x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2)
+    setWindSrc('Scenario'); setWind(w => ({ ...w, dir: Math.round((Math.atan2(x, -y) / D2R + 360) % 360) }))
+  }
   useEffect(() => { // count up to the recorded total once on load
     const TOTAL = 1_919_790_000, t0 = performance.now(), dur = 2600
     let r; const step = n => { const k = Math.min(1, (n - t0) / dur); setCount(Math.round(TOTAL * (1 - Math.pow(1 - k, 3)))); if (k < 1) r = requestAnimationFrame(step) }
@@ -109,24 +184,23 @@ export default function EarthTour() {
     host.appendChild(renderer.domElement)
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(50, 1, 1, 1.6e8)
+    camera.layers.enable(1) // layer 1 = visual-only effects (warp, stars, plume, beams); not hit by zoom raycasts
 
     const starGeo = new THREE.BufferGeometry(), sp = new Float32Array(5000 * 3)
     for (let i = 0; i < sp.length; i += 3) { const v = new THREE.Vector3().randomDirection().multiplyScalar(9e7); sp.set([v.x, v.y, v.z], i) }
     starGeo.setAttribute('position', new THREE.BufferAttribute(sp, 3))
-    scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, sizeAttenuation: false, transparent: true, opacity: 0.75 })))
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, sizeAttenuation: false, transparent: true, opacity: 0.75 })); stars.layers.set(1); scene.add(stars)
 
     const tiles = new TilesRenderer()
     tiles.registerPlugin(new GoogleCloudAuthPlugin({ apiToken: KEY, autoRefreshToken: true }))
     tiles.registerPlugin(new TileCompressionPlugin())
     tiles.registerPlugin(new UpdateOnChangePlugin())
-    tiles.registerPlugin(new UnloadTilesPlugin())
     tiles.registerPlugin(new TilesFadePlugin())
     tiles.registerPlugin(new GLTFExtensionsPlugin({
       dracoLoader: new DRACOLoader().setDecoderPath('https://unpkg.com/three@0.170.0/examples/jsm/libs/draco/gltf/'),
     }))
     tiles.group.rotation.x = -Math.PI / 2 // tiles are Z-up, three.js is Y-up
-    const DETAIL = 6, MOVING = 40
-    tiles.errorTarget = DETAIL
+    tiles.errorTarget = 8
     tiles.downloadQueue.maxJobsPerOrigin = 40
     tiles.parseQueue.maxJobs = 8
     tiles.lruCache.maxBytesSize = 600 * 1024 * 1024
@@ -151,20 +225,29 @@ export default function EarthTour() {
     // ---------- data overlay in a local East-North-Up frame at the stop ----------
     const overlay = new THREE.Group(); overlay.matrixAutoUpdate = false; scene.add(overlay)
     let site = null
-    const NP = 1400
-    const pPos = new Float32Array(NP * 6), pCol = new Float32Array(NP * 6)
+    const NA = 900 // ambient wind streaks: one long fine line each, bright head fading to a clear tail
+    const pPos = new Float32Array(NA * 6), pCol = new Float32Array(NA * 6)
     const pGeo = new THREE.BufferGeometry()
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3))
-    const particles = new THREE.LineSegments(pGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false }))
-    particles.renderOrder = 3; particles.frustumCulled = false
-    const P = []
+    const particles = new THREE.LineSegments(pGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false }))
+    particles.renderOrder = 7; particles.frustumCulled = false; particles.layers.set(1)
+    const NS = 2400 // plume puffs (one shared quad, instanced)
+    const sGeo = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1)); sGeo.instanceCount = NS
+    const sPos = new Float32Array(NS * 3), sSize = new Float32Array(NS), sCol = new Float32Array(NS * 4), sSeed = new Float32Array(NS)
+    for (const [name, arr, n] of [['iPos', sPos, 3], ['iSize', sSize, 1], ['iCol', sCol, 4], ['iSeed', sSeed, 1]]) {
+      const at = new THREE.InstancedBufferAttribute(arr, n); if (name !== 'iSeed') at.setUsage(THREE.DynamicDrawUsage); sGeo.setAttribute(name, at)
+    }
+    const puffMat = new THREE.ShaderMaterial({ vertexShader: PUFF_VS, fragmentShader: PUFF_FS, uniforms: { uTime: { value: 0 } },
+      transparent: true, blending: THREE.NormalBlending, depthTest: false, depthWrite: false })
+    const puffs = new THREE.Mesh(sGeo, puffMat); puffs.renderOrder = 3; puffs.frustumCulled = false; puffs.layers.set(1)
+    const S = Array.from({ length: NS }, (_, i) => { sSeed[i] = Math.random(); return { d: 0, c: gauss(), zg: Math.abs(gauss()), ox: 0, oy: 0, k: 0.7 + Math.random() * 0.6, seed: Math.random() * 100 } })
     const SZ = 96, EXT = 7000, plumeData = new Uint8Array(SZ * SZ * 4)
     const plumeTex = new THREE.DataTexture(plumeData, SZ, SZ); plumeTex.magFilter = plumeTex.minFilter = THREE.LinearFilter
     const plume = new THREE.Mesh(new THREE.PlaneGeometry(EXT, EXT), new THREE.MeshBasicMaterial({ map: plumeTex, transparent: true, depthTest: false, depthWrite: false }))
-    plume.renderOrder = 2
+    plume.renderOrder = 2; plume.layers.set(1) // faint ground footprint under the puffs
     let windNow = { dir: 300, speed: 4, cls: 'D' }
     let blds = null // { mesh, colors, items:[{start,count,x,y}] }
-    const bldMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.96 })
+    const bldMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
     const hemi = new THREE.HemisphereLight(0xffffff, 0x334433, 1.6), sun = new THREE.DirectionalLight(0xffffff, 1.6)
     sun.position.set(-400, -300, 900)
 
@@ -184,74 +267,162 @@ export default function EarthTour() {
       const [sx, sy] = local(site.source.lat, site.source.lon)
       plume.position.set(sx, sy, site.ground + 6)
       const ref = conc(150, 0, { ...windNow, dir: 270 }) || 1e-9 // 150 m straight downwind = 1.0
+      site.ref = ref
+      let reach = 300 // how far downwind the centreline stays visible; puffs live out to here
+      for (let x = 300; x <= EXT * 0.5; x += 50) if (logv(conc(x, 0, { ...windNow, dir: 270 }), ref) > 0.04) reach = x
+      site.reach = reach
+      const front = reveal * EXT * 0.5 // during the release animation only the reached area shows
       for (let j = 0; j < SZ; j++) for (let i = 0; i < SZ; i++) {
         const dx = (i / (SZ - 1) - 0.5) * EXT, dy = (j / (SZ - 1) - 0.5) * EXT
-        let v = conc(dx, dy, windNow) / ref
-        v = v > 0 ? Math.max(0, Math.min(1, 1 + Math.log10(v) / 2.6)) : 0
-        const o = (j * SZ + i) * 4, [r, g, b] = ramp(v)
-        plumeData[o] = r; plumeData[o + 1] = g; plumeData[o + 2] = b; plumeData[o + 3] = v < 0.03 ? 0 : 40 + v * 170
+        const v = Math.hypot(dx, dy) > front ? 0 : logv(conc(dx, dy, windNow), ref)
+        const o = (j * SZ + i) * 4, [r, g, b] = warm(v)
+        plumeData[o] = r; plumeData[o + 1] = g; plumeData[o + 2] = b; plumeData[o + 3] = v < 0.03 ? 0 : 18 + v * 80
       }
       plumeTex.needsUpdate = true
       if (blds) { // colour every modelled building by the drift reaching it
         const c = blds.colors.array
         for (const b of blds.items) {
-          let v = conc(b.x - sx, b.y - sy, windNow) / ref
-          v = v > 0 ? Math.max(0, Math.min(1, 1 + Math.log10(v) / 2.6)) : 0
-          const [r, g, bb] = v < 0.05 ? [226, 232, 228] : ramp(v)
-          for (let i = b.start; i < b.start + b.count; i++) { c[i * 3] = r / 255; c[i * 3 + 1] = g / 255; c[i * 3 + 2] = bb / 255 }
+          const v = Math.hypot(b.x - sx, b.y - sy) > front ? 0 : logv(conc(b.x - sx, b.y - sy, windNow), ref)
+          const [r, g, bb] = warm(0.25 + 0.75 * v), a = v < 0.05 ? 0 : 0.35 + 0.5 * v // only buildings the drift reaches light up, orange to red
+          for (let i = b.start; i < b.start + b.count; i++) { c[i * 4] = r / 255; c[i * 4 + 1] = g / 255; c[i * 4 + 2] = bb / 255; c[i * 4 + 3] = a }
         }
         blds.colors.needsUpdate = true
       }
-      const [tx, ty] = local(site.stop.lat, site.stop.lon)
+      const [tx, ty] = site.target
       const v = conc(tx - sx, ty - sy, windNow) / ref
       setSchoolLevel(v > 0 ? Math.max(0, Math.min(1, 1 + Math.log10(v) / 2.6)) : 0)
+      site.tv = Math.hypot(tx - sx, ty - sy) > front ? 0 : logv(conc(tx - sx, ty - sy, windNow), ref)
     }
 
-    function spawn(p, init) {
-      p.x = (Math.random() - 0.5) * 900; p.y = (Math.random() - 0.5) * 900; p.z = 5 + Math.random() * 25
-      p.age = init ? Math.random() * 300 : 0; p.px = p.x; p.py = p.y; p.pz = p.z; p.seed = Math.random() * 100
+    function spawnA(p, init) { // ambient wind streak anywhere in the 5 km view, relative to the stop
+      p.x = (Math.random() - 0.5) * 5000; p.y = (Math.random() - 0.5) * 5000; p.z = 25 + Math.random() * 110
+      p.age = init ? Math.random() * 6 : 0; p.life = 4 + Math.random() * 4; p.len = 50 + Math.random() * 130; p.v = 0.7 + Math.random() * 0.6; p.seed = Math.random() * 100
     }
-    for (let i = 0; i < NP; i++) { const p = {}; spawn(p, true); P.push(p) }
+    const A = []
+    for (let i = 0; i < NA; i++) { const p = {}; spawnA(p, true); A.push(p) }
+    let reveal = 1, revealT0 = 0 // plume "release" animation
 
-    function stepParticles(t) {
+    function stepParticles(t, dt) { // fine diagonal wind streaks drifting with the wind across the whole view
       if (!site?.source) return
-      const [sx, sy] = local(site.source.lat, site.source.lon)
       const to = (windNow.dir + 180) * D2R, ex = Math.sin(to), ny = Math.cos(to)
-      const spd = 2 + windNow.speed * 1.6, spread = { A: 2, B: 1.6, C: 1.25, D: 1, E: 0.7, F: 0.5 }[windNow.cls]
-      let k = 0
-      for (const p of P) {
-        p.px = p.x; p.py = p.y; p.pz = p.z
-        const n = Math.sin(p.seed + t * 0.9 + p.x * 0.004) * spread
-        p.x += ex * spd - ny * n * 1.2; p.y += ny * spd + ex * n * 1.2
-        p.z += Math.sin(p.seed + t) * 0.15 * spread
-        if (++p.age > 320) spawn(p, false)
-        const life = Math.min(1, p.age / 25) * Math.max(0, 1 - p.age / 320)
-        const [r, g, b] = ramp(Math.max(0, 0.95 - p.age / 340))
-        const gz = site.ground + 8
-        pPos.set([sx + p.px, sy + p.py, gz + p.pz, sx + p.x, sy + p.y, gz + p.z], k * 6)
-        pCol.set([r / 255 * life * 0.25, g / 255 * life * 0.25, b / 255 * life * 0.25, r / 255 * life, g / 255 * life, b / 255 * life], k * 6)
-        k++
+      const spd = 30 + windNow.speed * 22, gz = site.ground
+      for (let i = 0; i < NA; i++) {
+        const p = A[i], n = Math.sin(p.seed + t * 0.5 + p.y * 0.002) * 0.08
+        const dx = ex - ny * n, dy = ny + ex * n
+        p.x += dx * spd * p.v * dt; p.y += dy * spd * p.v * dt; p.age += dt
+        if (p.age > p.life || Math.abs(p.x) > 2600 || Math.abs(p.y) > 2600) spawnA(p, false)
+        const f = Math.min(1, p.age / 1.2) * Math.max(0, 1 - p.age / p.life) * 0.32, o = i * 6
+        pPos[o] = p.x; pPos[o + 1] = p.y; pPos[o + 2] = gz + p.z
+        pPos[o + 3] = p.x - dx * p.len; pPos[o + 4] = p.y - dy * p.len; pPos[o + 5] = gz + p.z
+        pCol[o] = 0.96 * f; pCol[o + 1] = 0.92 * f; pCol[o + 2] = 0.84 * f; pCol[o + 3] = pCol[o + 4] = pCol[o + 5] = 0
       }
       pGeo.attributes.position.needsUpdate = pGeo.attributes.color.needsUpdate = true
     }
 
-    function clearOverlay() { overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
+    function spawnPuff(p, init) { // a puff released somewhere over the treated section, then carried downwind
+      p.d = init ? Math.random() * (site?.reach || 1500) : Math.random() * 40
+      p.c = gauss(); p.zg = Math.abs(gauss()); p.ox = (Math.random() - 0.5) * 500; p.oy = (Math.random() - 0.5) * 500
+    }
+    S.forEach(p => spawnPuff(p, true))
+    function stepPuffs(t, dt) { // positions, sizes and brightness all follow the Gaussian plume for the current wind
+      if (!site?.source) return
+      const [sx, sy] = local(site.source.lat, site.source.lon)
+      const to = (windNow.dir + 180) * D2R, ex = Math.sin(to), ny = Math.cos(to)
+      const [ay, szf] = SIG[windNow.cls], ref = site.ref || 1, reach = site.reach || 1500, front = reveal * EXT * 0.5
+      const w270 = { ...windNow, dir: 270 }, adv = 10 + windNow.speed * 9 // visual advection, m/s
+      const lift = { A: 1, B: 0.8, C: 0.55, D: 0.4, E: 0.25, F: 0.15 }[windNow.cls] // unstable air lofts the puffs
+      for (let i = 0; i < NS; i++) {
+        const p = S[i]
+        p.d += adv * p.k * dt
+        if (p.d > reach) spawnPuff(p, false)
+        const x = p.d + 30, sY = ay * x / Math.sqrt(1 + 0.0001 * x), sZ = Math.max(szf(x), 0.5)
+        const fade = Math.min(1, p.d / 120) * Math.min(1, (reach - p.d) / (reach * 0.25)) // grow in at the field, thin out at the tail
+        const cw = (p.c + Math.sin(p.seed + t * 0.25) * 0.18) * sY, along = p.d + Math.sin(p.seed * 1.7 + t * 0.2) * sY * 0.25
+        const lx = p.ox * Math.min(1, 200 / (p.d + 200)) + along * ex - cw * ny, ly = p.oy * Math.min(1, 200 / (p.d + 200)) + along * ny + cw * ex
+        const v = Math.hypot(lx, ly) > front ? 0 : logv(conc(x, p.c * sY, w270), ref)
+        const size = 40 + sY * 2.6 + sZ * 0.8
+        sPos[i * 3] = sx + lx; sPos[i * 3 + 1] = sy + ly
+        sPos[i * 3 + 2] = site.ground + 4 + size * 0.18 + p.zg * sZ * lift * 1.6 + Math.sin(p.seed + t * 0.4) * sZ * 0.08
+        sSize[i] = size * (1 + Math.sin(p.seed * 3 + t * 0.3) * 0.08)
+        const [r, g, b] = warm(v), a = v < 0.02 ? 0 : fade * (0.05 + 0.13 * v) * Math.min(1, 300 / size + 0.35)
+        sCol[i * 4] = r / 255; sCol[i * 4 + 1] = g / 255; sCol[i * 4 + 2] = b / 255; sCol[i * 4 + 3] = a
+      }
+      puffMat.uniforms.uTime.value = t
+      sGeo.attributes.iPos.needsUpdate = sGeo.attributes.iSize.needsUpdate = sGeo.attributes.iCol.needsUpdate = true
+    }
+
+    const stateGroup = new THREE.Group(); scene.add(stateGroup)
+    const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 20, 1, false).translate(0, 0.5, 0)
+    let stateCells = null // { mesh, cells }
+    async function buildState() {
+      stateGroup.clear(); stateCells = null
+      let grid, counties
+      try { [grid, counties] = await Promise.all([fetch('/api/spatial/grid').then(r => r.json()), fetch('/api/spatial/counties').then(r => r.json())]) } catch { return }
+      const cells = grid.cells.filter(c => c.lbs >= 50_000), max = Math.max(...cells.map(c => c.lbs)), half = grid.cell_deg / 2
+      const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
+      const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.92 })
+      const mesh = new THREE.InstancedMesh(geo, mat, cells.length)
+      const up = new THREE.Vector3(0, 1, 0), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color()
+      cells.forEach((c, i) => {
+        const k = Math.pow(c.lbs / max, 0.45)
+        const base = toWorld(c.lat, c.lon, 0), n = base.clone().normalize()
+        const w = half * 2 * 111_000 * 0.82, d = w * Math.cos(c.lat * D2R)
+        q.setFromUnitVectors(up, n)
+        m4.compose(base, q, new THREE.Vector3(d, 800 + 70_000 * k, w))
+        mesh.setMatrixAt(i, m4)
+        const [r, g, b] = HEAT(k); col.setRGB(r, g, b)
+        mesh.setColorAt(i, col)
+      })
+      mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true
+      mesh.layers.set(1); stateGroup.add(mesh)
+      stateCells = { mesh, cells, geo }
+      setCountyLabels((counties.counties || []).slice(0, 7).map(c => ({ ...c, pos: toWorld(c.lat, c.lon, 70_000) })))
+      setGridInfo({ n: cells.length, max })
+    }
+    // hover + click on heat cells
+    const hoverRay = new THREE.Raycaster(); hoverRay.layers.set(1)
+    function pickCell(e) {
+      if (!stateCells) return null
+      const r = renderer.domElement.getBoundingClientRect()
+      hoverRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera)
+      const hit = hoverRay.intersectObject(stateCells.mesh, false)[0]
+      return hit ? stateCells.cells[hit.instanceId] : null
+    }
+    renderer.domElement.addEventListener('pointermove', e => {
+      const c = pickCell(e)
+      setHoverCell(c ? { ...c, x: e.clientX, y: e.clientY } : null)
+      renderer.domElement.style.cursor = c ? 'pointer' : ''
+    })
+    renderer.domElement.addEventListener('click', e => {
+      const c = pickCell(e); if (!c) return
+      api.current.fly({ id: 'cell', label: c.county, title: `${c.county} County hotspot`, target: 'Centre of this hotspot', lat: c.lat, lon: c.lon,
+        height: 1_600, tilt: 62, radius: 5, plume: true, note: `${(c.lbs / 1e6).toFixed(2)} M lbs applied in this ~8 km cell, 2020–2024, ${Math.round(100 * c.fumigant_lbs / c.lbs)}% fumigants.` })
+    })
+
+    function clearOverlay() { stateGroup.clear(); stateCells = null; setCountyLabels([]); setHoverCell(null); overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
 
     async function buildOverlay(stop) {
       clearOverlay()
+      if (stop.state) { buildState(); return }
       if (!stop.radius) return
       let json
       try { json = await (await fetch(`/api/spatial/sections?lat=${stop.lat}&lon=${stop.lon}&radius_km=${stop.radius}&limit=80`)).json() }
       catch { json = { sections: [] } }
       const secs = json.sections || []
-      const source = stop.plume ? [...secs].sort((a, b) => (b.fumigant_lbs || b.lbs * 0.01) - (a.fumigant_lbs || a.lbs * 0.01))[0] : null
+      // Plume source: the heaviest-treated section that is also close to the place (distance-weighted)
+      const near = s => { const d = Math.hypot((s.lon - stop.lon) * M * Math.cos(stop.lat * D2R), (s.lat - stop.lat) * M); return (s.fumigant_lbs || s.lbs * 0.05) / (1 + (d / 700) ** 3) }
+      const source = stop.plume ? [...secs].sort((a, b) => near(b) - near(a))[0] : null
+      if (source) source.bearing = (Math.atan2((source.lon - stop.lon) * Math.cos(stop.lat * D2R), source.lat - stop.lat) / D2R + 360) % 360
+      if (source) source.distance = Math.round(Math.hypot((source.lon - stop.lon) * M * Math.cos(stop.lat * D2R), (source.lat - stop.lat) * M))
+      if (source) setWindSrc('Scenario: wind blowing from the field toward ' + stop.target)
       setData({ stop, secs, source, total: secs.reduce((s, x) => s + x.lbs, 0), fum: secs.reduce((s, x) => s + x.fumigant_lbs, 0) })
       await new Promise(r => setTimeout(r, 900)) // let ground tiles settle before sampling height
       const enu = new THREE.Matrix4()
       ell.getEastNorthUpFrame(stop.lat * D2R, stop.lon * D2R, 0, enu)
       overlay.matrix.copy(tiles.group.matrixWorld).multiply(enu); overlay.matrixWorldNeedsUpdate = true
       const ground = groundHeight(stop.lat, stop.lon) ?? 0
-      site = { stop, ground, source }
+      site = { stop, ground, source, target: [0, 0], cols: [] }
+      reveal = 0; revealT0 = performance.now()
       overlay.add(hemi); overlay.add(sun)
       fetchBuildings(stop.lat, stop.lon, 1300).then(list => {
         if (site?.stop !== stop || !list.length) return
@@ -263,96 +434,198 @@ export default function EarthTour() {
           const g = new THREE.ExtrudeGeometry(shape, { depth: Math.max(1, b.h - b.base), bevelEnabled: false })
           g.translate(0, 0, ground + b.base + 0.5)
           const n = g.attributes.position.count
-          g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).fill(0.88), 3))
+          g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 4), 4))
           g.deleteAttribute('uv')
           const [bx, by] = local(b.rings[0][0][1], b.rings[0][0][0])
           items.push({ start: offset, count: n, x: bx, y: by }); offset += n
           geos.push(g.index ? g.toNonIndexed() : g)
         }
         const merged = mergeGeometries(geos, false)
-        const mesh = new THREE.Mesh(merged, bldMat); mesh.renderOrder = 1
+        const mesh = new THREE.Mesh(merged, bldMat); mesh.renderOrder = 6
         blds = { mesh, colors: merged.attributes.color, items }
         overlay.add(mesh); setBuildingCount(list.length); paintPlume()
       })
-      const max = Math.max(1, ...secs.map(s => s.lbs)), big = false
-      const colGeo = new THREE.CylinderGeometry(1, 1, 1, 24).rotateX(Math.PI / 2).translate(0, 0, 0.5)
-      for (const s of secs) {
-        const [x, y] = local(s.lat, s.lon)
-        const [r, g, b] = ramp(0.45 + (s.lbs ? s.fumigant_lbs / s.lbs : 0) * 0.55)
-        const col = new THREE.Mesh(colGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(r / 255, g / 255, b / 255), transparent: true, opacity: 0.8, depthWrite: false }))
-        const rad = 45, h = 40 + 360 * Math.sqrt(s.lbs / max)
-        col.scale.set(rad, rad, h); col.position.set(x, y, ground); overlay.add(col)
+      const max = Math.max(1, ...secs.map(s => s.lbs))
+      for (const s of secs) { // real square-mile sections as glowing ground patches + outlines
+        if (!s.ring?.length) continue
+        const k = Math.sqrt(s.lbs / max), [r, g, b] = ramp(0.2 + 0.8 * k), color = new THREE.Color(r / 255, g / 255, b / 255)
+        const pts = s.ring.map(([lo, la]) => new THREE.Vector2(...local(la, lo)))
+        const fill = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(pts)), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12 + 0.28 * k, depthTest: false, depthWrite: false }))
+        fill.position.z = ground + 4; fill.renderOrder = 1; fill.userData.sec = s; overlay.add(fill); site.cols.push(fill)
+        const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, p.y, ground + 6))), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85, depthTest: false }))
+        edge.renderOrder = 2; edge.layers.set(1); overlay.add(edge)
       }
+      if (source) setWind(w => ({ ...w, dir: Math.round(source.bearing), speed: 2.5, cls: 'E' })) // open on the scenario that reaches the place
       if (site.source) {
-        overlay.add(plume); overlay.add(particles); paintPlume()
+        overlay.add(plume); overlay.add(puffs); overlay.add(particles); paintPlume(); S.forEach(p => spawnPuff(p, true))
         const pin = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 1, 12).rotateX(Math.PI / 2).translate(0, 0, 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }))
-        pin.scale.z = 220; pin.position.set(0, 0, ground); pin.renderOrder = 4; overlay.add(pin)
+        pin.scale.z = 220; pin.position.set(0, 0, ground); pin.renderOrder = 4; overlay.add(pin); site.pin = pin
+        const ringGeo = new THREE.RingGeometry(0.95, 1, 96)
+        const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xff8a4c, transparent: true, depthTest: false, side: THREE.DoubleSide }))
+        ring.renderOrder = 5; ring.layers.set(1); ring.geometry = new THREE.RingGeometry(0.96, 1, 96); site.ring = ring; overlay.add(ring)
+        const tring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x7fe3a8, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }))
+        tring.renderOrder = 5; tring.layers.set(1); site.tring = tring; overlay.add(tring) // pulses around the school / pin, warm when drift reaches it
       }
     }
 
     api.current.setWind = w => { windNow = w; paintPlume() }
+    api.current.zoom = f => { // move the camera toward / away from the point at screen centre
+      const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(0, 0), camera)
+      const hit = ray.intersectObject(tiles.group, true)[0]
+      if (!hit) return
+      const to = camera.position.clone().sub(hit.point).multiplyScalar(f).add(hit.point)
+      if (to.distanceTo(hit.point) < 15) return
+      const from = camera.position.clone(), t0 = performance.now()
+      const step = n => { const k = Math.min(1, (n - t0) / 450), e = 1 - Math.pow(1 - k, 3); camera.position.lerpVectors(from, to, e); if (k < 1) requestAnimationFrame(step) }
+      requestAnimationFrame(step)
+    }
+
+    // Warp transition: glowing streaks rushing past the camera during long flights
+    const NW = 900, wPos = new Float32Array(NW * 6), wCol = new Float32Array(NW * 6), W = []
+    const PAL = [[0.35, 0.45, 1], [0.5, 0.95, 0.75], [1, 0.62, 0.4], [1, 1, 1]]
+    for (let i = 0; i < NW; i++) W.push({ a: Math.random() * Math.PI * 2, r: 2 + Math.random() * 30, z: -Math.random() * 400, len: 10 + Math.random() * 60, c: PAL[i % 4], curve: (Math.random() - 0.5) * 0.8 })
+    const wGeo = new THREE.BufferGeometry()
+    wGeo.setAttribute('position', new THREE.BufferAttribute(wPos, 3)); wGeo.setAttribute('color', new THREE.BufferAttribute(wCol, 3))
+    const warp = new THREE.LineSegments(wGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false }))
+    warp.frustumCulled = false; warp.renderOrder = 10; warp.layers.set(1); camera.add(warp); scene.add(camera)
+    function stepWarp(strength, speed) {
+      warp.visible = strength > 0.01
+      if (!warp.visible) return
+      let k = 0
+      for (const s of W) {
+        s.z += speed; s.a += s.curve * 0.004 * speed
+        if (s.z > 5) { s.z = -400; s.r = 2 + Math.random() * 30 }
+        const x = Math.cos(s.a) * s.r, y = Math.sin(s.a) * s.r, f = strength * Math.min(1, (s.z + 400) / 120)
+        wPos.set([x, y, s.z, Math.cos(s.a - s.curve * 0.05) * s.r * 1.02, Math.sin(s.a - s.curve * 0.05) * s.r * 1.02, s.z - s.len], k * 6)
+        wCol.set([s.c[0] * f, s.c[1] * f, s.c[2] * f, 0, 0, 0], k * 6); k++
+      }
+      wGeo.attributes.position.needsUpdate = wGeo.attributes.color.needsUpdate = true
+    }
 
     let flight = null, idle = true, orbitLon = STOPS[0].lon
-    renderer.domElement.addEventListener('pointerdown', () => { idle = false })
+    let down = null
+    renderer.domElement.addEventListener('pointerdown', e => { idle = false; down = [e.clientX, e.clientY] })
+    renderer.domElement.addEventListener('pointerup', e => {
+      if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5 || !site?.source) return
+      const r = renderer.domElement.getBoundingClientRect()
+      const ray = new THREE.Raycaster()
+      ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera)
+      const col = ray.intersectObjects(site.cols, false)[0]
+      if (col) { // new source field, re-release the plume
+        const s = col.object.userData.sec
+        site.source = s
+        s.bearing = (Math.atan2((s.lon - site.stop.lon) * Math.cos(site.stop.lat * D2R), s.lat - site.stop.lat) / D2R + 360) % 360
+        s.distance = Math.round(Math.hypot((s.lon - site.stop.lon) * M * Math.cos(site.stop.lat * D2R), (s.lat - site.stop.lat) * M))
+        setData(d => d && { ...d, source: { ...s } }); reveal = 0; revealT0 = performance.now(); return
+      }
+      const hit = ray.intersectObject(tiles.group, true)[0]
+      if (!hit) return
+      const p = hit.point.clone().applyMatrix4(new THREE.Matrix4().copy(overlay.matrixWorld).invert())
+      site.target = [p.x, p.y]; site.pin.position.set(p.x, p.y, site.ground)
+      setPinLabel('Dropped pin'); paintPlume()
+    })
     api.current.fly = to => {
       const cart = ell.getPositionToCartographic(camera.position.clone().applyMatrix4(new THREE.Matrix4().copy(tiles.group.matrixWorld).invert()), {})
       const from = { lat: cart.lat / D2R, lon: cart.lon / D2R, height: cart.height, tilt: 0 }
-      flight = { from, to, t0: performance.now(), dur: to.id === 'earth' || from.height > 2e6 ? 3200 : 2400 }
-      idle = to.id === 'earth'; controls.enabled = false; tiles.errorTarget = MOVING
-      clearOverlay(); setData(null); setMoving(true); setActive(to.id)
+      flight = { from, to, t0: performance.now(), dur: to.id === 'earth' || from.height > 2e6 ? 3800 : 3000 }
+      idle = to.id === 'earth'; controls.enabled = false
+      clearOverlay(); setData(null); setPinLabel(''); setView('satellite'); setMoving(true); setActive(to.id)
     }
     const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
     function stepFlight(now) {
       const { from, to, t0, dur } = flight
       const t = Math.min(1, (now - t0) / dur), e = ease(t)
       const arc = Math.sin(Math.PI * t) * Math.min(Math.max(from.height, to.height) * 0.6, 4e6)
+      tiles.group.visible = !(t > 0.25 && t < 0.72 && dur > 2000)
       place({ lat: from.lat + (to.lat - from.lat) * e, lon: from.lon + (to.lon - from.lon) * e,
         height: Math.exp(Math.log(Math.max(from.height, 300)) * (1 - e) + Math.log(to.height) * e) + arc, tilt: (to.tilt || 0) * e })
-      if (t >= 1) { flight = null; controls.enabled = true; tiles.errorTarget = DETAIL; setMoving(false); orbitLon = to.lon; buildOverlay(to) }
+      if (t >= 1) { tiles.group.visible = true; flight = null; controls.enabled = true; setMoving(false); orbitLon = to.lon; buildOverlay(to) }
     }
 
     function resize() { const w = host.clientWidth, h = host.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix() }
     addEventListener('resize', resize); resize()
     tiles.group.updateMatrixWorld(); place(STOPS[0])
 
-    let raf, lastCredits = ''
+    let raf, lastCredits = '', lastNow = performance.now()
     const v3 = new THREE.Vector3(), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
     const loop = now => {
       raf = requestAnimationFrame(loop)
-      if (flight) stepFlight(now)
+      const homeView = idle && !flight
+      const dt = Math.min(0.05, (now - lastNow) / 1000); lastNow = now
+      const w = host.clientWidth, h = host.clientHeight
+      if (homeView) camera.setViewOffset(w, h, 0, -h * 0.42, w, h); else if (camera.view?.enabled) camera.clearViewOffset()
+      if (flight) {
+        const t = Math.min(1, (now - flight.t0) / flight.dur), far = flight.to.height < 1e6 || flight.from.height < 1e6
+        stepWarp(far ? Math.pow(Math.sin(Math.PI * t), 1.5) : 0, 6 + 14 * Math.sin(Math.PI * t))
+        renderer.setClearColor(0x050807)
+        stepFlight(now)
+      } else stepWarp(0, 0)
+      if (false) stepFlight(now)
       else if (idle && !reduce) { orbitLon += 0.02; place({ ...STOPS[0], lon: orbitLon }) }
       else controls.update()
-      if (site?.source && !reduce) stepParticles(now / 1000)
+      if (site?.source) {
+        if (reveal < 1) { reveal = reduce ? 1 : Math.min(1, (now - revealT0) / 3200); paintPlume() }
+        if (!reduce) { stepParticles(now / 1000, dt); stepPuffs(now / 1000, dt) } else stepPuffs(0, 0)
+        if (site.ring) { const [sx, sy] = local(site.source.lat, site.source.lon), k = (now / 1600) % 1
+          site.ring.position.set(sx, sy, site.ground + 10); site.ring.scale.setScalar(80 + k * 260); site.ring.material.opacity = (1 - k) * 0.5 }
+        if (site.tring) { const k = (now / 1400) % 1, tv = site.tv || 0
+          site.tring.position.set(site.target[0], site.target[1], site.ground + 8); site.tring.scale.setScalar(45 + k * 90)
+          site.tring.material.color.set(tv > 0.05 ? (tv > 0.5 ? 0xc2362b : 0xe8823a) : 0x7fe3a8); site.tring.material.opacity = (1 - k) * 0.6 }
+      }
       camera.updateMatrixWorld()
       tiles.setCamera(camera); tiles.setResolutionFromRenderer(camera, renderer); tiles.update()
       renderer.render(scene, camera)
       if (tagRef.current) {
         if (site?.source) {
-          v3.set(0, 0, site.ground + 230).applyMatrix4(overlay.matrixWorld).project(camera)
+          v3.set(site.target[0], site.target[1], site.ground + 230).applyMatrix4(overlay.matrixWorld).project(camera)
           tagRef.current.style.display = v3.z < 1 ? 'block' : 'none'
           tagRef.current.style.left = ((v3.x + 1) / 2 * host.clientWidth) + 'px'
           tagRef.current.style.top = ((1 - v3.y) / 2 * host.clientHeight) + 'px'
         } else tagRef.current.style.display = 'none'
       }
+      labelRefs.current.forEach(el => { if (!el) return; const p = el._pos; if (!p) return; v3.copy(p).project(camera)
+        const vis = v3.z < 1 && Math.abs(v3.x) < 1.1 && Math.abs(v3.y) < 1.1; el.style.opacity = vis ? 1 : 0
+        el.style.transform = `translate(${(v3.x + 1) / 2 * host.clientWidth}px, ${(1 - v3.y) / 2 * host.clientHeight}px)` })
       const c = tiles.getAttributions().map(a => a.value).filter(v => typeof v === 'string').join(' · ')
       if (c !== lastCredits) { lastCredits = c; setCredits(c) }
     }
     raf = requestAnimationFrame(loop)
     const start = STOPS.find(s => s.id === new URLSearchParams(location.search).get('stop'))
-    if (start) setTimeout(() => api.current.fly(start), 1500) // deep link, e.g. /earth?stop=salinas
+    if (start) setTimeout(() => api.current.fly(start), 400) // deep link, e.g. /earth?stop=salinas
     return () => { cancelAnimationFrame(raf); removeEventListener('resize', resize); controls.dispose?.(); tiles.dispose(); renderer.dispose(); host.removeChild(renderer.domElement) }
   }, [])
 
   useEffect(() => { api.current.setWind?.(wind) }, [wind])
+  useEffect(() => { // land on the satellite view, then morph into the town model
+    const s = (custom ? [...STOPS, custom] : STOPS).find(x => x.id === active)
+    if (moving || !s?.plume) return
+    const id = setTimeout(() => setView('model'), 2200); return () => clearTimeout(id)
+  }, [moving, active]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stops = custom ? [...STOPS, custom] : STOPS
   const stop = stops.find(s => s.id === active)
 
-  function go(s) { if (!moving && KEY) api.current.fly?.(s) }
+  function go(s) { if (KEY) api.current.fly?.(s) }
 
-  async function search(e) {
-    e.preventDefault()
-    const q = query.trim()
+  useEffect(() => { // deep link from the landing page: /earth?q=Alisal High School
+    const q = new URLSearchParams(location.search).get('q')
+    if (q && KEY) { setQuery(q); const id = setTimeout(() => search(null, q), 400); return () => clearTimeout(id) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { // the landing page drives this map when embedded: postMessage({type:'askgaia', q | stop})
+    const onMsg = ev => {
+      if (ev.origin !== location.origin || ev.data?.type !== 'askgaia') return
+      if (ev.data.q) { setQuery(ev.data.q); search(null, ev.data.q) }
+      else if (ev.data.stop) { const s = STOPS.find(x => x.id === ev.data.stop); if (s) api.current.fly?.(s) }
+    }
+    addEventListener('message', onMsg)
+    if (embed && parent !== window) parent.postMessage({ type: 'askgaia-ready' }, location.origin)
+    return () => removeEventListener('message', onMsg)
+  }) // re-bind each render so search() sees current state
+
+  async function search(e, preset) {
+    e?.preventDefault()
+    const q = (preset ?? query).trim()
     if (!q) return
     setSearchMsg('Searching…')
     try {
@@ -380,21 +653,40 @@ export default function EarthTour() {
   return (
     <div className={'earth' + (atEarth ? ' is-home' : '')}>
       <div className="earth-canvas" ref={mount} />
-      <div className="earth-tag" ref={tagRef}>{stop?.target}</div>
+      <div className={'earth-grade' + (stop?.plume && !moving ? ' on' : '')} aria-hidden="true" />
+      {countyLabels.map((c, i) => (
+        <div key={c.county_cd} className="earth-county" ref={el => { labelRefs.current[i] = el; if (el) el._pos = c.pos }}>
+          <b>{c.name}</b><span>{(c.lbs / 1e6).toFixed(0)} M lbs</span>
+        </div>))}
+      {hoverCell && <div className="earth-hover" style={{ left: hoverCell.x + 14, top: hoverCell.y + 14 }}>
+        <b>{fmtLbs(hoverCell.lbs)} lbs</b><span>{hoverCell.county} County · 2020–2024</span><span>{Math.round(100 * hoverCell.fumigant_lbs / hoverCell.lbs)}% fumigants · click to fly in</span></div>}
+      <div className="earth-tag" ref={tagRef}>{pinLabel || stop?.target}</div>
       {!KEY && (
         <div className="earth-missing"><h2>Add a Google Maps key to see photorealistic 3D</h2>
           <p>Put <code>VITE_GOOGLE_MAPS_KEY=…</code> in <code>frontend/.env.local</code>, then restart <code>npm run dev</code>.</p></div>
       )}
-      <header className="earth-head">
+      {!embed && <header className="earth-head">
         <a className="earth-brand" href="/earth" onClick={e => { e.preventDefault(); go(STOPS[0]) }}><span className="earth-dot" />askgaia</a>
         <nav className="earth-nav"><a href="/">Investigate</a><a href="/explorer">Data explorer</a><span>Earth, understood.</span></nav>
-      </header>
+      </header>}
 
-      {atEarth && (
-        <section className="earth-stat" aria-live="off">
-          <p className="earth-kicker">California · latest published data</p>
-          <p className="earth-num">{count.toLocaleString('en-US')}<span> lbs</span></p>
-          <p className="earth-sub">of pesticides recorded by the state from 2014 to 2024, the most recent year California has released. That is about 430,000 lbs a day.</p>
+      {atEarth && !embed && (
+        <section className="earth-stat" aria-live="polite" onMouseEnter={() => setFactHold(true)} onMouseLeave={() => setFactHold(false)}>
+          <div className="earth-fact" key={fact}>
+            <p className="earth-kicker">{FACTS[fact].topic}</p>
+            {FACTS[fact].quote
+              ? <p className="earth-quote">{FACTS[fact].quote}</p>
+              : <><p className="earth-num">{FACTS[fact].count ? count.toLocaleString('en-US') : FACTS[fact].value}<span> {FACTS[fact].unit}</span></p>
+                  <p className="earth-sub">{FACTS[fact].text}</p></>}
+            <p className="earth-src">{FACTS[fact].source}</p>
+          </div>
+          <div className="earth-factnav">
+            <button type="button" aria-label="Previous fact" onClick={() => setFact(f => (f + FACTS.length - 1) % FACTS.length)}>‹</button>
+            <span>{FACTS[fact].topic} <em>{fact + 1} of {FACTS.length}</em></span>
+            <button type="button" aria-label="Next fact" onClick={() => setFact(f => (f + 1) % FACTS.length)}>›</button>
+            <button type="button" aria-label={factHold ? 'Resume' : 'Pause'} onClick={() => setFactHold(h => !h)}>{factHold ? '▶' : 'Ⅱ'}</button>
+          </div>
+          <div className="earth-factbar"><i key={fact + (factHold ? 'h' : '')} className={factHold ? 'held' : ''} /></div>
         </section>
       )}
 
@@ -428,24 +720,46 @@ export default function EarthTour() {
 
           {stop.plume && data?.source && (
             <div className="earth-wind">
-              <div className="earth-wind-head"><p className="earth-kicker">Drift · modelled</p><button type="button" onClick={liveWind}>Use live wind</button></div>
-              <label htmlFor="wdir">Wind from <b>{wind.dir}°</b></label>
-              <input id="wdir" type="range" min="0" max="359" value={wind.dir} onChange={e => { setWindSrc('Scenario'); setWind(w => ({ ...w, dir: +e.target.value })) }} />
+              <div className="earth-wind-head"><p className="earth-kicker">Drift · modelled</p><span className="earth-wind-btns"><button type="button" onClick={liveWind}>Live wind</button><button type="button" className="ghost" onClick={() => { setWindSrc('Worst case: wind blowing from the field toward ' + stop.target); setWind(w => ({ ...w, dir: Math.round(data.source.bearing), speed: 2, cls: 'F' })) }}>Worst case</button></span></div>
+              <p className="earth-fine">Source field {(data.source.distance / 1000).toFixed(1)} km {['N','NE','E','SE','S','SW','W','NW'][Math.round(data.source.bearing / 45) % 8]} of {stop.target}.</p>
+              <div className="earth-dialrow">
+                <svg ref={dialRef} className="earth-dial" viewBox="-60 -60 120 120" role="slider" aria-label="Wind direction" aria-valuenow={wind.dir} tabIndex={0}
+                  onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); dragDial(e) }} onPointerMove={e => e.buttons && dragDial(e)}
+                  onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setWind(w => ({ ...w, dir: (w.dir + 5) % 360 })); if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setWind(w => ({ ...w, dir: (w.dir + 355) % 360 })) }}>
+                  <circle r="54" className="ring" />
+                  {[0, 90, 180, 270].map((a, i) => <text key={a} x={Math.sin(a * D2R) * 43} y={-Math.cos(a * D2R) * 43 + 4} textAnchor="middle">{'NESW'[i]}</text>)}
+                  <g transform={`rotate(${wind.dir + 180})`}><line y1="30" y2="-34" className="shaft" /><path d="M0 -44 L9 -28 L-9 -28 Z" className="head" /></g>
+                  <circle r="4" className="hub" />
+                </svg>
+                <div><p className="earth-big">{wind.dir}°</p><p className="earth-fine">Wind from {['N','NE','E','SE','S','SW','W','NW'][Math.round(wind.dir / 45) % 8]}. Drag the dial, or click a column to make it the source and click the map to drop a pin.</p></div>
+              </div>
               <label htmlFor="wspd">Speed <b>{wind.speed} m/s</b></label>
               <input id="wspd" type="range" min="0.5" max="12" step="0.5" value={wind.speed} onChange={e => { setWindSrc('Scenario'); setWind(w => ({ ...w, speed: +e.target.value })) }} />
               <div className="earth-cls" role="group" aria-label="Atmospheric stability">
                 {'ABCDEF'.split('').map(c => <button type="button" key={c} aria-pressed={wind.cls === c} onClick={() => setWind(w => ({ ...w, cls: c }))}>{c}</button>)}
               </div>
-              <p className="earth-read"><span>{stop.target}</span><b data-level={level}>{level ?? '…'}</b></p>
+              <p className="earth-read"><span>{pinLabel || stop.target}</span><b data-level={level}>{level ?? '…'}</b></p>
               {buildingCount > 0 && <p className="earth-fine">{buildingCount.toLocaleString('en-US')} buildings coloured by modelled drift. Turn the wind to see which homes sit downwind.</p>}
               <p className="earth-fine">{windSrc}. Gaussian plume, stability {wind.cls}. Relative estimate, not measured exposure.</p>
             </div>
           )}
-          <p className="earth-fine">Columns are treated square-mile sections: height is pounds applied, colour is the fumigant share. Source: CDPR Pesticide Use Reports.</p>
+          {stop.state && <div className="earth-legend"><i /><span>Fewer lbs</span><span>More lbs</span></div>}
+          {stop.state && gridInfo && <p className="earth-note">{gridInfo.n.toLocaleString('en-US')} cells of about 8 km with at least 50k lbs applied, built from real square-mile records. Hover to read one, click to fly in.</p>}
+          <p className="earth-fine">{stop.state ? 'Height and colour: pounds applied per cell, 2020–2024.' : 'Outlined squares are the real square-mile sections where pesticide was recorded; brighter = more pounds. Click one to release the plume from it.'} Source: CDPR Pesticide Use Reports.</p>
         </section>
       )}
 
+      {!atEarth && <div className="earth-zoom"><button type="button" aria-label="Zoom in" onClick={() => api.current.zoom?.(0.55)}>+</button><button type="button" aria-label="Zoom out" onClick={() => api.current.zoom?.(1.8)}>−</button></div>}
       {!atEarth && <p className="earth-hint">Scroll or pinch to zoom · Shift-drag or right-drag to tilt</p>}
+      {stop?.plume && !moving && (
+        <>
+          <iframe className={'earth-model' + (view === 'model' ? ' on' : '')} title={`${stop.label} drift model`} src={stop.model ? `/${stop.model}.html` : `/diorama-template.html?lat=${stop.lat}&lon=${stop.lon}&name=${encodeURIComponent(stop.title || stop.label || '')}`} tabIndex={view === 'model' ? 0 : -1} />
+          <div className="earth-viewswitch" role="group" aria-label="View">
+            <button type="button" aria-pressed={view === 'satellite'} onClick={() => setView('satellite')}>Satellite</button>
+            <button type="button" aria-pressed={view === 'model'} onClick={() => setView('model')}>Model</button>
+          </div>
+        </>
+      )}
       <footer className="earth-credits">
         <img src="https://www.gstatic.com/images/branding/googlelogo/svg/googlelogo_clr_74x24px.svg" alt="Google" height="16" />
         <span>{credits}</span>

@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>askgaia · Oxnard Plain</title></head><body>
+<style>
+:root{
+  --ink:#06120E; --ink2:#0B1C16; --bone:#EEE8DC; --bone2:#B9B3A6; --mute:#7E8A82;
+  --mint:#7FE3A8; --ember:#E8823A; --red:#C2362B; --rule:rgba(238,232,220,.14);
+  --serif:"Instrument Serif", "Fraunces", Georgia, serif;
+  --sans:"Montserrat", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--ink);color:var(--bone);height:100%;overflow:hidden}
+body{font-family:var(--sans);-webkit-font-smoothing:antialiased}
+
+.stage{position:fixed;inset:0;overflow:hidden;transition:background 1.2s;background:
+  radial-gradient(120% 70% at 62% 30%,#e7a768 0%,#b8743f 18%,#5a3f25 38%,#1b2219 62%,#06120E 88%);}
+.stage.noon{background:radial-gradient(120% 70% at 55% 22%,#f1d2a2 0%,#c99a62 20%,#6b5435 40%,#1f2a1f 64%,#06120E 90%)}
+.stage canvas{display:block;width:100%;height:100%;position:absolute;inset:0;cursor:grab;touch-action:none}
+.stage canvas:active{cursor:grabbing}
+.grain{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(6,18,14,.62),rgba(6,18,14,0) 26%,rgba(6,18,14,0) 66%,rgba(6,18,14,.82));}
+
+.tag{position:absolute;left:0;top:0;pointer-events:none;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone);white-space:nowrap;transform:translate(-50%,-100%);padding-bottom:26px;opacity:0;text-shadow:0 1px 6px rgba(6,18,14,.8)}
+.tag::after{content:"";position:absolute;left:50%;bottom:4px;width:1px;height:20px;background:currentColor;opacity:.6}
+.tag i{font-style:normal;display:block;font-size:9px;color:var(--bone2);letter-spacing:.1em;margin-top:2px}
+.tag.src{transform:translate(-80%,-100%)} .tag.src::after{left:80%} .tag.school{color:var(--mint);padding-bottom:64px} .tag.school::after{height:58px} .tag.src{color:var(--ember)} .tag.poi{font-size:9px;padding-bottom:20px} .tag.poi::after{height:14px}
+.sec{position:absolute;left:0;top:0;pointer-events:none;font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:rgba(238,232,220,.62);white-space:nowrap;transform:translate(-50%,-50%);opacity:0;text-shadow:0 1px 5px rgba(6,18,14,.9)}
+
+.title{position:absolute;top:84px;left:32px;max-width:440px;pointer-events:none}
+.kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);display:flex;align-items:center;gap:12px}
+.kicker::before{content:"";width:24px;height:1px;background:var(--mint)}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,3.4vw,50px);line-height:1;letter-spacing:-.015em;margin:14px 0 12px}
+h1 em{font-style:italic;color:var(--bone2)}
+.deck{font-size:13px;line-height:1.55;color:var(--bone2);max-width:42ch}
+.deck strong{color:var(--bone);font-weight:500}
+
+.overlay-top{position:absolute;top:30px;right:32px;text-align:right;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone2);line-height:1.9;pointer-events:none}
+.overlay-top b{color:var(--bone);font-weight:500}
+.live{display:inline-flex;align-items:center;gap:8px;color:var(--mint)}
+.live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 0 rgba(127,227,168,.6);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,227,168,.5)}70%{box-shadow:0 0 0 9px rgba(127,227,168,0)}100%{box-shadow:0 0 0 0 rgba(127,227,168,0)}}
+
+.panel{position:absolute;right:28px;bottom:28px;display:flex;align-items:flex-end;gap:22px}
+.readout{background:rgba(6,18,14,.74);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--rule);border-radius:4px;padding:14px 16px;width:272px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--bone2)}
+.readout .row{display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px solid rgba(238,232,220,.07)}
+.readout b{color:var(--bone);font-weight:500;text-align:right}
+.readout b.hot{color:var(--ember)} .readout b.ok{color:var(--mint)}
+.ctl{display:flex;align-items:center;gap:10px;padding:10px 0 4px}
+.ctl label{flex:none}
+.ctl input{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:2px;background:linear-gradient(90deg,var(--ember) var(--p,15%),rgba(238,232,220,.2) var(--p,15%));outline:0;cursor:pointer}
+.ctl input::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--bone);border:0}
+.ctl input::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--bone);border:0}
+.ctl input:focus-visible{outline:2px solid var(--mint);outline-offset:6px}
+.ctl output{flex:none;width:52px;text-align:right;color:var(--bone)}
+.seg{display:grid;grid-template-columns:1fr 1fr;margin-top:8px;border:1px solid var(--rule);border-radius:999px;padding:2px}
+.seg button{font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--bone2);background:transparent;border:0;border-radius:999px;padding:7px 4px;cursor:pointer;transition:background .2s,color .2s}
+.seg button[aria-pressed="true"]{background:var(--bone);color:var(--ink)}
+.seg button:focus-visible,.compass:focus-visible{outline:2px solid var(--mint);outline-offset:3px}
+.compass-wrap{text-align:center;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--bone2);text-transform:uppercase}
+.compass{width:118px;height:118px;display:block;margin:0 auto 8px;cursor:grab;touch-action:none;border-radius:50%;background:rgba(6,18,14,.6);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.compass:active{cursor:grabbing}
+
+.legend{position:absolute;left:32px;bottom:28px;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone2);display:flex;flex-direction:column;gap:9px;pointer-events:none}
+.legend .items{display:flex;flex-wrap:wrap;gap:16px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend .hint{color:var(--mute);letter-spacing:.08em;text-transform:none;font-size:10px}
+.sw{width:14px;height:8px;display:inline-block;border-radius:1px}
+.sw.rec{border:1px dashed rgba(238,232,220,.7);height:9px}
+.sw.mod{background:linear-gradient(90deg,#ffc773,var(--ember),var(--red))}
+.sw.unm{background:repeating-linear-gradient(45deg,rgba(238,232,220,.55) 0 1.5px,transparent 1.5px 4px);outline:1px solid rgba(238,232,220,.3)}
+
+@media (max-width:820px){
+  .title{left:16px;top:18px;right:16px;max-width:none}
+  .deck{font-size:12px}
+  .overlay-top{display:none}
+  .legend{display:none}
+  .panel{left:16px;right:16px;bottom:16px;flex-direction:row;align-items:flex-end;justify-content:space-between;gap:10px}
+  .readout{width:auto;flex:1;min-width:0;padding:10px 12px;font-size:10px}
+  .compass{width:84px;height:84px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+.tag.street{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,55,210,.82);border:0;padding:0;background:none;text-shadow:0 1px 6px rgba(0,0,0,.85)}
+.tag.street::before,.tag.street::after{display:none}
+.tag.water{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#9fdcff;border:0;padding:0;background:none;text-shadow:0 1px 6px rgba(0,0,0,.85)}
+.tag.water::before,.tag.water::after{display:none}
+.tag.surf{color:#bfe8ff;border-color:rgba(143,216,255,.6)}
+.tag.surf i{color:#ffcf9e}
+.tag.lm-fuel{color:#ffcf8a}.tag.lm-fire{color:#ff9a8f}.tag.lm-church{color:#ddc8ff}.tag.lm-hosp{color:#ffb0cb}.tag.lm-shop{color:#a8e6ff}.tag.lm-park{color:#b5efbd}.tag.lm-water{color:#9fdcff}
+.tag.poi{font-weight:500;text-shadow:0 1px 6px rgba(0,0,0,.9)}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+
+<main class="stage" id="stage" aria-label="Interactive 3D model of Oxnard Plain, Ventura County, showing a modelled pesticide drift plume and the buildings it reaches">
+  <div class="grain"></div>
+  <div id="labels"></div>
+
+  <div class="title">
+    <p class="kicker">A real place · Oxnard Plain, Ventura County</p>
+    <p class="deck"><strong id="nB">55</strong> real buildings from OpenStreetMap. <strong>4.31 M lbs</strong> of pesticides recorded within 1.25 km of Rio Mesa High School, 2020–2024 (CDPR)</p>
+  </div>
+
+  <div class="overlay-top">
+    <div class="live">Modelled scenario</div>
+    <div>Application · <b id="hTime">06:40</b> · <span id="hSky">Golden hour</span></div>
+    <div id="hSec">Sec 15 · T13S R18E</div>
+  </div>
+
+  <div class="legend">
+    <div class="items"><span><i class="sw rec"></i>Recorded: CDPR Pesticide Use Reports</span><span><i class="sw mod"></i>Modelled: Gaussian plume</span><span><i class="sw unm"></i>Not measured exposure</span></div>
+    <div class="hint">Drag the scene to orbit · wheel to zoom · arrow keys turn the wind</div>
+  </div>
+
+  <div class="panel">
+    <div class="readout" aria-live="polite">
+      <div class="row"><span>Wind from</span><b id="rWind">—</b></div>
+      <div class="row"><span>Buildings in plume</span><b id="rHomes" class="hot">—</b></div>
+      <div class="row"><span>At the school</span><b id="rSchool">—</b></div>
+      <div class="row"><span>Air</span><b id="rAir">Stable · inversion</b></div>
+      <div class="ctl"><label for="speed">Wind</label><input id="speed" type="range" min="0.5" max="9" step="0.1" value="1.6"><output id="rSpeed" for="speed">1.6 m/s</output></div>
+      <div class="seg" role="group" aria-label="Time of day">
+        <button type="button" data-t="calm" aria-pressed="true">06:40 · calm</button>
+        <button type="button" data-t="windy" aria-pressed="false">14:00 · windy</button>
+      </div>
+    </div>
+    <div class="compass-wrap">
+      <svg class="compass" id="compass" viewBox="-60 -60 120 120" tabindex="0" role="slider" aria-label="Wind direction. Drag or use arrow keys." aria-valuemin="0" aria-valuemax="359" aria-valuenow="0">
+        <circle r="56" fill="none" stroke="rgba(238,232,220,.18)"/>
+        <circle r="40" fill="none" stroke="rgba(238,232,220,.08)"/>
+        <g id="rose"></g>
+        <g id="needle">
+          <line x1="0" y1="30" x2="0" y2="-34" stroke="#E8823A" stroke-width="1.4"/>
+          <path d="M0 -44 L6 -31 L0 -34 L-6 -31 Z" fill="#E8823A"/>
+          <circle cy="30" r="3" fill="none" stroke="#E8823A" stroke-width="1.2"/>
+        </g>
+        <circle r="2.2" fill="#EEE8DC"/>
+      </svg>
+      Drag · wind
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="place">{"name":"Rio Mesa High School","center":[34.2513,-119.1495],"radius_m":1000.0,"buildings":[{"rings":[[[359.2,388.1],[365.6,395.5],[355.2,404.4],[348.8,396.5],[333.0,409.9],[357.2,439.5],[386.3,416.3],[383.8,413.3],[398.7,401.5],[375.9,374.3],[359.2,388.1]]],"h":5},{"rings":[[[342.4,327.4],[373.5,301.3],[354.2,278.1],[322.6,304.2],[342.4,327.4]]],"h":5},{"rings":[[[300.4,316.6],[325.6,347.2],[340.9,334.3],[315.2,303.7],[300.4,316.6]]],"h":5},{"rings":[[[325.6,249.9],[300.9,270.2],[322.6,296.3],[347.3,276.1],[325.6,249.9]]],"h":5},{"rings":[[[363.1,272.6],[380.9,294.4],[390.8,286.5],[372.5,264.7],[363.1,272.6]]],"h":5},{"rings":[[[432.2,268.2],[449.0,253.9],[407.5,203.5],[390.3,217.9],[432.2,268.2]]],"h":5},{"rings":[[[382.4,224.8],[366.1,238.1],[407.5,288.9],[423.8,275.1],[382.4,224.8]]],"h":5},{"rings":[[[415.4,197.1],[457.4,247.5],[472.2,235.1],[430.7,184.3],[415.4,197.1]]],"h":5},{"rings":[[[467.3,260.3],[509.2,310.6],[526.0,296.3],[484.0,246.0],[467.3,260.3]]],"h":5},{"rings":[[[484.0,331.4],[501.3,317.1],[459.4,266.2],[442.1,280.5],[484.0,331.4]]],"h":5},{"rings":[[[444.6,340.8],[435.2,348.7],[441.1,355.1],[450.5,347.7],[444.6,340.8]]],"h":5},{"rings":[[[434.7,287.0],[417.4,301.3],[459.4,351.6],[476.2,337.3],[434.7,287.0]]],"h":5},{"rings":[[[407.5,318.0],[412.5,323.5],[423.3,314.6],[418.9,308.7],[407.5,318.0]]],"h":5},{"rings":[[[425.8,336.3],[431.2,343.2],[440.6,335.8],[435.2,328.9],[425.8,336.3]]],"h":5},{"rings":[[[423.8,315.1],[413.0,324.0],[417.4,329.9],[428.3,320.5],[423.8,315.1]]],"h":5},{"rings":[[[428.8,321.5],[419.4,328.9],[425.3,335.8],[434.7,328.4],[428.8,321.5]]],"h":5},{"rings":[[[405.1,396.0],[436.7,369.9],[431.2,363.0],[399.6,389.1],[405.1,396.0]]],"h":5},{"rings":[[[451.0,348.2],[441.6,356.1],[447.0,362.5],[456.4,355.1],[451.0,348.2]]],"h":5},{"rings":[[[533.4,289.9],[550.7,275.6],[508.7,225.3],[491.5,239.6],[533.4,289.9]]],"h":5},{"rings":[[[546.7,258.8],[557.6,271.7],[574.4,257.3],[564.0,245.0],[546.7,258.8]]],"h":5},{"rings":[[[530.9,207.0],[514.7,220.8],[541.8,253.9],[558.6,240.1],[530.9,207.0]]],"h":5},{"rings":[[[536.9,199.1],[559.1,225.7],[599.1,192.2],[576.8,166.0],[536.9,199.1]]],"h":5},{"rings":[[[552.2,158.6],[558.1,154.2],[539.8,132.0],[527.5,142.3],[531.9,148.3],[526.5,152.7],[528.0,154.2],[512.2,167.5],[527.5,186.3],[555.6,163.1],[552.2,158.6]]],"h":5},{"rings":[[[594.6,155.7],[612.4,140.8],[604.5,131.5],[586.7,146.3],[594.6,155.7]]],"h":5},{"rings":[[[593.6,171.5],[601.0,180.3],[629.2,156.6],[621.8,147.8],[593.6,171.5]]],"h":5},{"rings":[[[610.9,178.4],[618.3,187.2],[640.0,169.5],[632.1,160.1],[610.9,178.4]]],"h":5},{"rings":[[[618.8,219.8],[609.9,209.0],[614.4,205.5],[609.4,199.1],[605.0,203.0],[603.0,200.6],[593.1,208.5],[608.9,228.2],[618.8,219.8]]],"h":5},{"rings":[[[575.4,249.4],[579.3,253.9],[589.2,246.0],[572.9,226.2],[562.0,235.6],[573.9,250.4],[575.4,249.4]]],"h":5},{"rings":[[[582.3,140.8],[596.1,129.5],[589.7,121.6],[583.3,121.6],[573.4,130.0],[582.3,140.8]]],"h":5},{"rings":[[[572.4,143.3],[581.3,153.7],[585.7,150.2],[576.8,139.4],[572.4,143.3]]],"h":5},{"rings":[[[564.0,149.2],[571.9,158.6],[573.9,156.6],[566.5,147.8],[564.0,149.2]]],"h":5},{"rings":[[[503.3,133.9],[489.0,145.8],[495.4,153.7],[499.8,149.7],[503.8,154.7],[506.8,152.2],[510.7,157.1],[516.6,152.2],[512.7,147.8],[515.1,145.3],[511.2,140.4],[521.1,132.5],[512.2,121.6],[501.3,121.6],[496.4,125.5],[503.3,133.9]]],"h":5},{"rings":[[[470.2,149.2],[468.3,146.8],[458.4,154.7],[460.8,157.1],[444.1,171.0],[454.4,183.8],[482.6,160.6],[471.7,147.8],[470.2,149.2]]],"h":5},{"rings":[[[161.7,-699.8],[164.7,-695.3],[171.1,-700.3],[164.7,-708.2],[163.2,-707.2],[161.7,-709.2],[155.8,-704.7],[160.2,-698.8],[161.7,-699.8]]],"h":5},{"rings":[[[176.5,-704.7],[183.0,-709.7],[178.5,-715.6],[181.5,-717.6],[178.5,-721.5],[175.5,-719.5],[170.1,-726.4],[163.7,-722.0],[176.5,-704.7]]],"h":5},{"rings":[[[157.3,-681.0],[165.2,-687.9],[157.3,-697.3],[149.4,-690.4],[157.3,-681.0]]],"h":5},{"rings":[[[139.0,-695.3],[143.5,-690.4],[146.4,-693.4],[141.5,-698.3],[139.0,-695.3]]],"h":5},{"rings":[[[638.1,-259.0],[651.9,-244.7],[658.3,-250.6],[644.5,-264.9],[638.1,-259.0]]],"h":5},{"rings":[[[648.9,-210.1],[663.2,-222.9],[653.4,-233.8],[639.0,-221.0],[648.9,-210.1]]],"h":5},{"rings":[[[603.0,-239.2],[607.5,-243.2],[606.5,-243.7],[619.3,-256.0],[612.9,-262.9],[617.8,-267.4],[607.9,-277.7],[599.6,-269.8],[607.0,-262.4],[594.6,-250.6],[597.1,-248.1],[595.6,-246.6],[603.0,-239.2]]],"h":5},{"rings":[[[629.7,-255.0],[634.1,-250.1],[640.0,-255.0],[635.1,-260.0],[629.7,-255.0]]],"h":5},{"rings":[[[632.6,-273.3],[635.1,-275.3],[632.6,-277.7],[630.6,-275.8],[632.6,-273.3]]],"h":5},{"rings":[[[430.7,184.8],[430.7,184.3],[430.2,184.8],[430.7,184.8]]],"h":5},{"rings":[[[470.2,149.2],[468.3,146.8],[458.4,154.7],[460.8,157.1],[444.1,171.0],[454.4,183.8],[482.6,160.6],[471.7,147.8],[470.2,149.2]]],"h":5},{"rings":[[[503.3,133.9],[489.0,145.8],[495.4,153.7],[499.8,149.7],[503.8,154.7],[506.8,152.2],[510.7,157.1],[516.6,152.2],[512.7,147.8],[515.1,145.3],[511.2,140.4],[521.1,132.5],[507.7,116.2],[496.4,125.5],[503.3,133.9]]],"h":5},{"rings":[[[562.0,95.9],[571.4,107.3],[580.3,100.4],[570.4,89.0],[562.0,95.9]]],"h":5},{"rings":[[[552.2,158.6],[558.1,154.2],[539.8,132.0],[527.5,142.3],[531.9,148.3],[526.5,152.7],[528.0,154.2],[512.2,167.5],[526.5,184.8],[529.0,184.8],[555.6,163.1],[552.2,158.6]]],"h":5},{"rings":[[[564.0,149.2],[571.9,158.6],[573.9,156.6],[566.5,147.8],[564.0,149.2]]],"h":5},{"rings":[[[582.3,140.8],[596.1,129.5],[587.2,118.6],[573.4,130.0],[582.3,140.8]]],"h":5},{"rings":[[[572.4,143.3],[581.3,153.7],[585.7,150.2],[576.8,139.4],[572.4,143.3]]],"h":5},{"rings":[[[593.6,171.5],[601.0,180.3],[629.2,156.6],[621.8,147.8],[593.6,171.5]]],"h":5},{"rings":[[[592.6,184.8],[576.8,166.0],[554.1,184.8],[592.6,184.8]]],"h":5},{"rings":[[[594.6,155.7],[612.4,140.8],[604.5,131.5],[586.7,146.3],[594.6,155.7]]],"h":5},{"rings":[[[610.9,178.4],[616.3,184.8],[621.8,184.8],[640.0,169.5],[632.1,160.1],[610.9,178.4]]],"h":5},{"rings":[[[548.7,84.1],[558.1,95.4],[569.4,86.6],[560.1,74.7],[548.7,84.1]]],"h":5}],"roads":[{"class":"service","name":null,"pts":[[-856.6,187.2],[-807.7,261.8],[-850.2,289.4],[-854.1,287.9],[-901.5,217.9]]},{"class":"service","name":null,"pts":[[-786.5,841.7],[-724.3,799.3]]},{"class":"service","name":null,"pts":[[-1114.2,1103.3],[-803.3,891.1],[-782.5,889.6],[-724.3,927.1]]},{"class":"service","name":null,"pts":[[-737.1,807.7],[-730.2,818.0]]},{"class":"service","name":null,"pts":[[-724.3,813.6],[-741.1,825.4],[-724.3,845.2]]},{"class":"service","name":null,"pts":[[-1030.3,306.2],[-974.1,394.6],[-871.4,324.5],[-913.8,259.8],[-929.6,237.1]]},{"class":"service","name":null,"pts":[[-1016.0,329.4],[-913.8,259.8]]},{"class":"service","name":null,"pts":[[-933.6,398.5],[-905.0,439.5]]},{"class":"service","name":null,"pts":[[-996.8,283.0],[-1053.5,198.6],[-1055.0,195.1],[-1054.0,192.7],[-1034.8,177.9],[-1030.8,178.4],[-1027.4,181.3],[-969.6,264.7]]},{"class":"service","name":null,"pts":[[-766.3,212.4],[-761.3,211.4],[-755.9,207.5],[-754.9,204.5],[-755.9,198.1],[-757.9,192.2],[-774.6,167.0],[-776.6,165.0],[-778.6,165.0],[-793.4,173.4]]},{"class":"service","name":null,"pts":[[-795.4,339.3],[-854.6,380.2]]},{"class":"service","name":null,"pts":[[-876.8,349.1],[-841.8,398.5],[-782.5,357.0],[-818.1,308.7]]},{"class":"service","name":null,"pts":[[-866.0,364.0],[-807.2,323.5]]},{"class":"service","name":null,"pts":[[-818.6,427.1],[-762.3,389.1],[-773.7,372.3]]},{"class":"service","name":null,"pts":[[-810.7,440.5],[-828.9,410.8],[-756.9,360.5]]},{"class":"service","name":null,"pts":[[-803.8,501.7],[-798.8,504.1],[-796.9,508.1],[-796.4,512.5],[-799.3,522.4],[-801.3,535.2],[-784.0,559.4],[-778.1,562.4],[-770.2,562.9],[-761.8,558.9],[-724.3,533.3]]},{"class":"service","name":null,"pts":[[-918.8,420.2],[-889.2,401.5]]},{"class":"service","name":null,"pts":[[-724.3,408.4],[-735.6,392.6],[-793.9,305.2],[-799.3,301.8],[-806.2,301.8],[-811.7,304.2],[-910.4,372.3],[-915.3,377.3],[-925.2,393.6],[-947.9,406.9],[-1033.8,465.6],[-1082.7,544.1],[-1083.6,550.5],[-1082.2,556.4],[-1076.7,562.4],[-1044.6,583.1],[-1035.8,599.9],[-1012.1,637.4],[-1003.7,642.8],[-991.8,644.8],[-982.9,644.3],[-976.0,642.3],[-876.3,573.2],[-873.4,572.2],[-865.5,572.7],[-858.6,577.7],[-846.7,590.5],[-839.8,593.0],[-831.4,593.5],[-821.0,590.5],[-790.4,569.8],[-784.0,559.4]]},{"class":"service","name":null,"pts":[[-724.3,450.3],[-725.8,449.3],[-730.2,442.9],[-731.7,435.5],[-729.7,428.1],[-725.8,419.7],[-724.3,418.2]]},{"class":"service","name":null,"pts":[[-735.6,392.6],[-766.7,414.3]]},{"class":"service","name":null,"pts":[[-796.9,145.8],[-813.6,121.6]]},{"class":"service","name":null,"pts":[[-807.2,153.2],[-766.3,212.4],[-769.2,219.8],[-793.9,236.1],[-796.4,234.6],[-874.4,121.6]]},{"class":"service","name":null,"pts":[[-766.7,414.3],[-769.7,427.6],[-771.7,430.1],[-802.8,451.3],[-806.2,451.3],[-809.7,449.8],[-811.2,447.4],[-811.7,443.9],[-810.7,440.5]]},{"class":"service","name":null,"pts":[[-810.7,440.5],[-803.8,437.0],[-777.6,419.2],[-766.7,414.3]]},{"class":"service","name":null,"pts":[[-1113.7,364.0],[-1052.0,449.3],[-1018.5,425.7],[-984.9,402.0],[-1043.7,315.6]]},{"class":"service","name":null,"pts":[[-936.5,242.0],[-959.3,209.5]]},{"class":"service","name":null,"pts":[[-979.0,121.6],[-978.5,122.1]]},{"class":"service","name":null,"pts":[[-959.3,209.5],[-997.3,152.7],[-954.3,123.6],[-916.3,180.3],[-959.3,209.5]]},{"class":"minor","name":null,"pts":[[-724.3,607.3],[-874.8,710.9]]},{"class":"minor","name":null,"pts":[[-759.3,122.1],[-796.9,145.8],[-1200.1,423.2],[-1335.9,517.5]]},{"class":"minor","name":null,"pts":[[-724.3,391.1],[-725.8,392.1],[-735.6,392.6]]},{"class":"minor","name":null,"pts":[[-735.6,392.6],[-731.7,385.7],[-724.3,380.7]]},{"class":"primary","name":null,"pts":[[-759.3,121.6],[-724.3,176.4]]},{"class":"service","name":null,"pts":[[-926.2,39.2],[-926.2,23.4],[-967.6,-35.9],[-973.1,-49.7],[-980.5,-61.0]]},{"class":"service","name":null,"pts":[[-880.3,80.6],[-895.1,91.0],[-830.4,184.8]]},{"class":"service","name":null,"pts":[[-807.2,153.2],[-785.5,184.8]]},{"class":"service","name":null,"pts":[[-796.9,145.8],[-826.5,103.3],[-827.0,99.4],[-825.5,96.9],[-816.1,90.0],[-815.1,88.0],[-842.8,45.6]]},{"class":"service","name":null,"pts":[[-762.8,184.8],[-776.6,165.0],[-778.6,165.0],[-793.4,173.4]]},{"class":"service","name":null,"pts":[[-843.7,-526.5],[-838.3,-545.8],[-828.9,-572.4],[-809.2,-596.6],[-800.3,-606.0],[-782.5,-622.3],[-772.7,-625.7],[-759.8,-626.7],[-747.5,-630.2],[-730.2,-641.5],[-724.3,-643.5]]},{"class":"service","name":null,"pts":[[-921.2,-460.9],[-878.8,-407.1],[-953.3,-345.4],[-1017.0,-290.1]]},{"class":"service","name":null,"pts":[[-1055.0,-349.8],[-982.0,-408.5],[-948.9,-438.2],[-914.3,-466.8],[-872.4,-503.3],[-809.7,-554.7],[-787.5,-574.4]]},{"class":"service","name":null,"pts":[[-1049.1,-192.3],[-1010.1,-216.5],[-983.4,-179.5]]},{"class":"service","name":null,"pts":[[-1056.5,-203.2],[-1033.3,-169.6],[-987.4,-177.0],[-958.3,-194.8]]},{"class":"service","name":null,"pts":[[-1049.1,-66.0],[-1014.0,-89.2],[-951.8,-132.1],[-969.1,-157.8],[-1066.4,-91.1],[-1049.1,-66.0],[-1025.4,-30.4]]},{"class":"service","name":null,"pts":[[-991.3,-53.6],[-1014.0,-89.2]]},{"class":"service","name":null,"pts":[[-946.4,-5.3],[-946.4,-30.9],[-944.9,-65.0],[-953.3,-79.8]]},{"class":"service","name":null,"pts":[[-926.2,39.2],[-939.0,47.6],[-957.3,37.7],[-1011.6,75.2],[-978.5,122.1]]},{"class":"service","name":null,"pts":[[-975.5,184.8],[-997.3,152.7],[-954.3,123.6],[-916.3,180.3],[-922.7,184.8]]},{"class":"minor","name":null,"pts":[[-908.4,-111.9],[-953.3,-79.8],[-1340.3,184.8]]},{"class":"minor","name":null,"pts":[[-990.3,-248.1],[-1109.3,-167.7]]},{"class":"minor","name":null,"pts":[[-759.3,122.1],[-796.9,145.8],[-853.1,184.8]]},{"class":"primary","name":null,"pts":[[-990.3,-248.1],[-958.3,-194.8]]},{"class":"primary","name":null,"pts":[[-1924.7,-1733.0],[-1879.3,-1659.5],[-1841.3,-1603.2],[-1822.6,-1570.1],[-1749.0,-1454.1],[-1715.0,-1398.3],[-1705.6,-1384.5],[-1569.8,-1160.4],[-1555.5,-1140.6],[-1391.2,-878.5],[-1288.0,-717.6],[-990.3,-248.1]]},{"class":"primary","name":null,"pts":[[-958.3,-194.8],[-908.4,-111.9],[-724.3,176.4]]},{"class":"service","name":null,"pts":[[-630.0,323.5],[-617.2,316.1],[-385.2,121.6]]},{"class":"service","name":null,"pts":[[-480.9,803.2],[-442.4,771.2]]},{"class":"service","name":null,"pts":[[-477.0,728.7],[-442.4,771.2],[-425.7,792.9]]},{"class":"service","name":null,"pts":[[-450.3,708.0],[-491.3,649.2],[-558.4,698.1],[-553.5,704.5],[-509.1,754.4]]},{"class":"service","name":null,"pts":[[-474.0,674.4],[-639.9,808.2]]},{"class":"service","name":null,"pts":[[-594.5,738.1],[-578.2,758.3],[-550.5,787.4]]},{"class":"service","name":null,"pts":[[-619.2,758.3],[-571.3,803.7]]},{"class":"service","name":null,"pts":[[-518.5,761.8],[-485.4,797.8],[-463.2,825.0]]},{"class":"service","name":null,"pts":[[-544.6,846.7],[-485.4,797.8]]},{"class":"service","name":null,"pts":[[-656.7,788.9],[-553.5,704.5]]},{"class":"service","name":null,"pts":[[-787.5,889.6],[-782.5,889.6],[-633.5,985.4],[-353.6,752.4],[-337.8,744.5]]},{"class":"service","name":null,"pts":[[-786.5,841.7],[-514.5,655.7],[-457.7,617.7],[-442.9,608.8]]},{"class":"service","name":null,"pts":[[-722.8,846.7],[-652.7,793.9]]},{"class":"service","name":null,"pts":[[-737.1,807.7],[-730.2,818.0]]},{"class":"service","name":null,"pts":[[-674.9,765.2],[-652.7,793.9],[-615.2,835.3],[-578.2,809.2],[-519.9,873.8],[-388.6,761.3],[-438.5,698.6]]},{"class":"service","name":null,"pts":[[-668.0,775.1],[-741.1,825.4],[-708.5,863.9],[-637.4,810.6]]},{"class":"service","name":null,"pts":[[-304.7,751.4],[-272.2,725.3],[-249.9,750.9],[-298.8,791.4]]},{"class":"service","name":null,"pts":[[-296.8,710.4],[-279.6,731.7]]},{"class":"service","name":null,"pts":[[-787.5,564.8],[-784.0,559.4]]},{"class":"service","name":null,"pts":[[-787.5,554.5],[-784.0,559.4],[-778.1,562.4],[-770.2,562.9],[-761.8,558.9],[-673.0,497.7],[-666.5,491.8],[-567.8,424.2]]},{"class":"service","name":null,"pts":[[-697.1,445.9],[-703.6,451.8],[-711.5,454.3],[-719.4,453.3],[-725.8,449.3],[-730.2,442.9],[-731.7,435.5],[-729.7,428.1],[-725.8,419.7],[-720.8,413.8],[-663.1,372.3],[-639.9,407.4],[-697.1,445.9]]},{"class":"service","name":null,"pts":[[-787.5,405.9],[-762.3,389.1],[-773.7,372.3]]},{"class":"service","name":null,"pts":[[-735.6,392.6],[-766.7,414.3]]},{"class":"service","name":null,"pts":[[-787.5,381.7],[-756.9,360.5]]},{"class":"service","name":null,"pts":[[-787.5,360.5],[-782.5,357.0],[-787.5,350.1]]},{"class":"service","name":null,"pts":[[-787.5,315.1],[-735.6,392.6],[-697.1,445.9],[-666.5,491.8]]},{"class":"service","name":null,"pts":[[-766.3,212.4],[-761.3,211.4],[-755.9,207.5],[-754.9,204.5],[-755.9,198.1],[-757.9,192.2],[-774.6,167.0],[-776.6,165.0],[-778.6,165.0],[-787.5,170.0]]},{"class":"service","name":null,"pts":[[-787.5,181.8],[-766.3,212.4],[-769.2,219.8],[-787.5,232.2]]},{"class":"service","name":null,"pts":[[-766.7,414.3],[-769.7,427.6],[-771.7,430.1],[-787.5,441.0]]},{"class":"service","name":null,"pts":[[-787.5,425.7],[-777.6,419.2],[-766.7,414.3]]},{"class":"service","name":null,"pts":[[229.3,779.5],[245.1,770.2],[297.0,726.7],[299.4,722.3],[299.4,718.8],[232.3,637.9],[183.4,577.2],[144.0,531.8],[107.9,485.4],[52.6,419.2]]},{"class":"service","name":null,"pts":[[345.3,231.7],[316.7,200.1]]},{"class":"service","name":null,"pts":[[201.7,296.8],[340.4,464.6]]},{"class":"service","name":null,"pts":[[477.6,121.6],[356.7,223.3],[345.3,231.7]]},{"class":"service","name":null,"pts":[[67.0,917.7],[78.3,931.1],[85.7,933.0],[138.0,890.6],[139.5,885.7],[126.7,868.4]]},{"class":"service","name":null,"pts":[[319.7,550.0],[286.6,507.6]]},{"class":"service","name":null,"pts":[[605.5,121.6],[665.7,194.2],[632.6,221.8],[340.4,464.6]]},{"class":"service","name":null,"pts":[[572.4,121.6],[558.6,133.4],[632.6,221.8]]},{"class":"service","name":null,"pts":[[308.8,536.2],[363.1,491.3]]},{"class":"service","name":null,"pts":[[340.4,464.6],[374.0,505.1]]},{"class":"service","name":null,"pts":[[374.0,505.1],[319.7,550.0]]},{"class":"service","name":null,"pts":[[352.8,479.5],[299.4,524.9]]},{"class":"service","name":null,"pts":[[286.6,507.6],[174.1,370.9]]},{"class":"service","name":null,"pts":[[250.1,355.1],[198.3,400.0]]},{"class":"service","name":null,"pts":[[238.7,341.2],[185.4,385.2]]},{"class":"service","name":null,"pts":[[226.9,327.4],[174.1,370.9]]},{"class":"service","name":null,"pts":[[174.1,370.9],[148.9,340.3]]},{"class":"service","name":null,"pts":[[-398.5,667.0],[-578.2,809.2]]},{"class":"service","name":null,"pts":[[160.7,693.2],[131.1,719.3],[123.2,721.8],[118.3,724.3],[115.8,728.2],[116.8,731.7],[119.8,733.6],[124.7,731.7],[128.2,728.2],[131.1,719.3]]},{"class":"service","name":null,"pts":[[-80.1,863.4],[-125.1,893.1],[-138.9,904.4],[-147.3,918.2],[-145.3,925.6]]},{"class":"service","name":null,"pts":[[951.5,453.3],[1000.9,411.8],[1007.3,401.0],[1011.7,396.0],[1034.4,375.8],[1044.8,368.9],[1076.4,343.2]]},{"class":"service","name":null,"pts":[[883.9,209.0],[909.0,187.7],[914.5,186.3]]},{"class":"service","name":null,"pts":[[998.4,376.3],[1018.6,358.5]]},{"class":"service","name":null,"pts":[[1135.1,556.4],[1170.7,527.3],[1180.5,517.0],[1182.5,513.5],[1182.0,511.0],[1179.5,507.1],[1097.6,416.8],[1095.6,413.3],[1096.6,405.9],[1099.1,402.0],[1110.4,391.1],[1110.4,388.1],[1108.0,382.7],[1021.6,272.1],[1017.6,270.7],[1003.8,270.7],[997.4,269.2],[992.5,264.2],[972.2,234.6],[967.3,228.7],[963.8,227.2],[954.9,226.7],[950.5,228.7],[931.3,242.5],[921.9,250.9]]},{"class":"track","name":null,"pts":[[461.8,731.2],[854.3,406.4]]},{"class":"track","name":null,"pts":[[912.5,477.0],[789.1,327.4],[619.3,121.6]]},{"class":"track","name":null,"pts":[[951.5,453.3],[927.3,474.0],[527.5,805.2],[523.5,809.6],[522.1,813.1],[522.1,817.1],[525.5,823.0],[636.6,957.2],[644.0,959.2],[648.4,958.2],[653.4,955.7],[1135.1,556.4]]},{"class":"track","name":null,"pts":[[789.1,327.4],[396.2,652.7],[520.6,800.8],[920.9,470.1],[927.8,458.7],[931.7,439.5],[940.1,425.2],[998.4,376.3]]},{"class":"track","name":null,"pts":[[950.5,724.3],[1297.5,1110.7]]},{"class":"track","name":null,"pts":[[785.1,990.3],[1206.7,640.8]]},{"class":"track","name":null,"pts":[[1297.5,1461.6],[1225.9,1520.8],[977.7,1224.7],[973.7,1213.9],[929.3,1163.0],[917.4,1144.8],[909.0,1135.9],[902.1,1131.4],[721.5,913.8],[940.1,729.7],[950.5,724.3],[953.5,715.4],[957.9,710.4],[1119.3,576.7],[1128.2,570.8],[1144.5,576.7]]},{"class":"track","name":null,"pts":[[778.7,121.6],[1005.8,369.4]]},{"class":"service","name":null,"pts":[[160.7,840.7],[-39.2,597.9],[-88.5,536.7]]},{"class":"service","name":null,"pts":[[286.6,507.6],[340.4,464.6]]},{"class":"service","name":null,"pts":[[459.4,121.6],[361.1,202.1],[357.7,210.4],[356.7,223.3]]},{"class":"service","name":null,"pts":[[-408.4,141.3],[-377.3,174.9],[-345.2,150.2]]},{"class":"service","name":null,"pts":[[-695.2,418.7],[-650.7,391.1]]},{"class":"service","name":null,"pts":[[-705.5,402.9],[-672.5,452.3],[-629.0,423.2],[-639.9,407.4]]},{"class":"service","name":null,"pts":[[261.9,369.4],[209.6,414.3]]},{"class":"service","name":null,"pts":[[221.5,428.1],[273.3,383.2]]},{"class":"service","name":null,"pts":[[286.1,398.5],[232.8,442.4]]},{"class":"service","name":null,"pts":[[243.7,455.3],[297.0,411.8]]},{"class":"service","name":null,"pts":[[307.8,425.2],[255.0,469.1]]},{"class":"service","name":null,"pts":[[266.4,482.9],[319.2,439.0]]},{"class":"service","name":null,"pts":[[331.0,453.3],[277.7,496.7]]},{"class":"track","name":null,"pts":[[932.2,469.6],[938.7,469.1],[949.0,472.0],[976.2,500.2],[982.1,502.2],[986.0,501.2],[991.0,497.2],[1050.2,446.9],[1062.6,442.4],[1066.0,443.4],[1073.9,451.8],[1139.1,533.7],[1139.6,536.7],[1138.6,540.2],[1131.7,547.1],[1130.7,550.0],[1131.7,552.5],[1135.1,556.4]]},{"class":"minor","name":null,"pts":[[-533.8,476.5],[-787.5,650.7]]},{"class":"minor","name":null,"pts":[[-152.7,590.0],[-99.9,650.7]]},{"class":"minor","name":null,"pts":[[-17.9,478.5],[160.7,693.2],[229.3,779.5]]},{"class":"minor","name":null,"pts":[[33.4,750.9],[-27.3,801.8],[-89.0,851.6]]},{"class":"minor","name":null,"pts":[[-243.5,665.0],[-89.0,851.6],[-80.1,863.4],[6.7,967.6]]},{"class":"minor","name":null,"pts":[[67.0,917.7],[-27.3,801.8],[-130.5,676.4],[-99.9,650.7],[-76.2,632.5],[-70.8,630.0],[-65.3,633.9],[33.4,750.9],[126.7,868.4],[-107.3,1060.9]]},{"class":"minor","name":null,"pts":[[-759.3,122.1],[-787.5,139.9]]},{"class":"minor","name":null,"pts":[[229.3,779.5],[225.4,787.9],[126.7,868.4]]},{"class":"minor","name":null,"pts":[[-630.0,323.5],[-640.9,333.8],[-725.8,392.1],[-735.6,392.6]]},{"class":"minor","name":null,"pts":[[-735.6,392.6],[-731.7,385.7],[-645.8,325.9],[-630.0,323.5]]},{"class":"tertiary","name":null,"pts":[[-337.8,744.5],[-243.5,665.0],[87.2,390.6],[201.7,296.8],[316.7,200.1]]},{"class":"tertiary","name":null,"pts":[[316.7,200.1],[412.0,121.6]]},{"class":"secondary","name":null,"pts":[[803.4,121.6],[848.8,170.0],[1174.1,531.3],[1297.5,666.5]]},{"class":"primary","name":null,"pts":[[-759.3,121.6],[-630.0,323.5],[-567.8,424.2],[-490.8,543.6],[-442.9,608.8],[-398.5,667.0],[-337.8,744.5],[-298.8,791.4],[-288.4,805.2],[-279.1,820.5],[-120.6,1044.6],[-107.3,1060.9],[-82.1,1086.0],[-45.1,1114.7],[121.7,1213.4],[146.9,1230.6],[168.1,1246.4],[187.4,1264.2],[205.7,1284.0],[388.8,1488.8],[414.0,1526.8],[425.3,1546.0],[443.6,1584.0],[505.8,1727.1],[521.1,1758.7],[543.8,1794.7],[587.2,1850.0],[676.1,1958.6],[757.5,2054.8],[880.9,2206.3]]},{"class":"service","name":null,"pts":[[-460.2,184.8],[-353.6,94.9],[-235.6,4.6]]},{"class":"service","name":null,"pts":[[89.2,-663.7],[177.0,-736.8]]},{"class":"service","name":null,"pts":[[-787.5,-617.8],[-782.5,-622.3],[-772.7,-625.7],[-759.8,-626.7],[-747.5,-630.2],[-730.2,-641.5],[-699.6,-651.9],[-685.3,-652.9],[-671.0,-647.5],[-655.7,-639.1],[-632.5,-636.6]]},{"class":"service","name":null,"pts":[[-88.5,-979.2],[-50.5,-1010.8],[-46.6,-1012.3],[-43.6,-1012.3],[-40.7,-1010.8],[-38.7,-1007.3],[-38.7,-1002.9],[-41.1,-998.4],[-83.6,-966.8]]},{"class":"service","name":null,"pts":[[554.1,60.4],[473.7,125.1],[402.6,184.8]]},{"class":"service","name":null,"pts":[[591.2,104.8],[558.6,133.4],[601.5,184.8]]},{"class":"service","name":null,"pts":[[554.1,60.4],[574.9,84.1],[591.2,104.8],[657.8,184.8]]},{"class":"service","name":null,"pts":[[526.0,27.8],[545.3,49.0],[554.1,60.4]]},{"class":"service","name":null,"pts":[[-87.1,-975.7],[-110.7,-966.4],[-120.6,-966.8],[-131.0,-988.1]]},{"class":"service","name":null,"pts":[[751.1,-158.8],[739.7,-170.6],[731.3,-174.6],[700.7,-207.1],[612.4,-305.4],[608.9,-307.3],[574.4,-277.7]]},{"class":"service","name":null,"pts":[[537.9,-167.2],[613.9,-233.3]]},{"class":"service","name":null,"pts":[[-762.8,184.8],[-776.6,165.0],[-778.6,165.0],[-787.5,170.0]]},{"class":"service","name":null,"pts":[[-787.5,181.8],[-785.5,184.8]]},{"class":"service","name":null,"pts":[[545.3,49.0],[541.3,55.0],[382.4,184.8]]},{"class":"service","name":null,"pts":[[-408.4,141.3],[-377.3,174.9],[-345.2,150.2]]},{"class":"track","name":null,"pts":[[-302.8,-1747.3],[-286.0,-1721.7],[-272.2,-1705.4],[-257.8,-1696.0],[-171.5,-1503.0],[-12.0,-1112.0],[-6.6,-1102.1],[22.5,-1031.0],[26.5,-1019.2],[146.4,-725.0]]},{"class":"track","name":null,"pts":[[-100.9,-1839.2],[8.7,-1651.6],[11.7,-1645.2],[328.6,-875.5]]},{"class":"track","name":null,"pts":[[871.5,-1325.7],[146.4,-725.0],[98.5,-686.9],[95.1,-686.0],[89.7,-686.5],[38.8,-743.2],[18.1,-771.4],[7.2,-789.6],[-5.6,-816.3],[-44.1,-907.1],[-62.9,-953.5],[-60.9,-959.4],[23.5,-1027.6]]},{"class":"track","name":null,"pts":[[671.6,184.8],[548.2,35.7],[548.2,30.8],[549.7,26.8],[617.3,-28.5],[629.7,-31.9],[636.1,-29.9],[639.0,-27.5],[726.4,67.3],[732.3,70.8],[836.5,184.8]]},{"class":"track","name":null,"pts":[[-8.6,-1900.4],[100.0,-1726.6],[417.9,-950.1]]},{"class":"track","name":null,"pts":[[-239.1,-1876.2],[-81.1,-1577.0],[236.8,-800.0]]},{"class":"minor","name":null,"pts":[[-759.3,122.1],[-787.5,139.9]]},{"class":"tertiary","name":null,"pts":[[672.1,-94.1],[1297.5,-611.4]]},{"class":"tertiary","name":null,"pts":[[335.5,184.8],[526.0,27.8],[672.1,-94.1]]},{"class":"secondary","name":null,"pts":[[632.1,-61.0],[862.2,184.8]]},{"class":"secondary","name":null,"pts":[[-478.0,-1900.4],[-414.3,-1757.7],[-325.5,-1548.9],[-259.3,-1390.4],[-234.1,-1327.2],[-107.3,-1025.1],[-20.4,-813.3],[-7.6,-786.2],[8.7,-760.0],[26.5,-735.3],[89.2,-663.7],[553.2,-150.4],[632.1,-61.0]]},{"class":"primary","name":null,"pts":[[-787.5,77.2],[-718.9,184.8]]}],"water":[{"rings":[[[-724.3,-508.7],[-805.2,-441.6],[-807.2,-435.7],[-753.9,-367.6],[-724.3,-330.5],[-724.3,-508.7]]],"class":"pond","subclass":null},{"rings":[[[378.9,347.2],[401.1,374.3],[418.4,360.0],[396.2,332.9],[378.9,347.2]]],"class":"swimming_pool","subclass":null},{"rings":[[[570.4,-255.5],[574.4,-251.6],[582.3,-259.0],[578.8,-262.9],[570.4,-255.5]]],"class":"swimming_pool","subclass":null}],"waterways":[],"landuse":[{"rings":[[[-724.3,540.7],[-905.4,664.5],[-793.9,853.1],[-799.8,859.0],[-724.3,916.3],[-724.3,540.7]]],"class":"industrial","subclass":null},{"rings":[[[-850.2,757.8],[-724.3,671.9],[-724.3,589.5],[-746.5,556.4],[-904.5,666.5],[-850.2,757.8]]],"class":"industrial","subclass":null},{"rings":[[[-734.2,121.6],[-724.3,137.4],[-724.3,121.6],[-734.2,121.6]]],"class":"farmland","subclass":"farmland"},{"rings":[[[-724.3,-323.1],[-818.1,-437.2],[-805.2,-441.6],[-724.3,-508.7],[-724.3,-887.4],[-778.1,-950.6],[-769.7,-957.0],[-773.7,-961.9],[-770.2,-963.9],[-784.5,-981.7],[-933.6,-864.2],[-970.6,-833.6],[-1005.2,-803.9],[-1145.8,-693.4],[-1126.6,-666.2],[-1128.6,-656.8],[-1191.2,-601.1],[-1188.8,-594.6],[-1071.8,-413.5],[-1024.4,-440.6],[-997.3,-410.5],[-918.3,-474.7],[-864.0,-393.7],[-989.9,-286.1],[-724.3,137.4],[-724.3,-323.1]]],"class":"farmland","subclass":"farmland"},{"rings":[[[366.6,549.0],[372.5,556.4],[385.3,546.1],[384.8,556.0],[385.8,561.9],[387.8,568.3],[394.2,579.6],[398.7,584.1],[404.1,588.0],[409.5,591.0],[415.4,593.0],[421.9,594.0],[428.3,594.5],[434.7,593.5],[441.1,591.5],[446.5,588.5],[452.0,585.1],[534.4,516.0],[538.3,511.0],[541.3,505.1],[543.3,499.2],[544.3,492.8],[544.8,486.4],[543.8,479.9],[541.8,474.0],[538.8,468.1],[535.4,462.7],[530.4,458.2],[525.5,454.3],[519.6,451.3],[513.7,448.8],[500.8,447.9],[494.4,448.8],[488.5,450.8],[477.1,457.2],[366.6,549.0]],[[406.1,528.8],[483.6,464.6],[491.9,459.7],[501.8,457.2],[506.3,457.7],[516.1,459.7],[520.6,462.2],[528.0,468.6],[532.9,477.5],[534.4,481.9],[534.9,491.8],[532.4,501.2],[527.0,509.6],[446.0,577.7],[437.7,582.6],[427.8,584.6],[417.9,583.6],[409.0,579.6],[405.1,576.7],[398.7,569.3],[396.7,564.8],[394.7,555.0],[395.2,545.6],[399.1,536.2],[406.1,528.8]]],"class":"track","subclass":null},{"rings":[[[427.8,121.6],[142.0,358.0],[391.3,652.2],[785.1,327.4],[613.9,121.6],[427.8,121.6]]],"class":"school","subclass":null},{"rings":[[[-787.5,279.1],[-738.1,245.0],[-725.8,263.8],[-699.1,245.5],[-779.1,121.6],[-787.5,121.6],[-787.5,279.1]]],"class":"industrial","subclass":null},{"rings":[[[-576.7,439.5],[-787.5,583.6],[-787.5,868.4],[-633.5,985.4],[-353.6,752.4],[-355.6,745.5],[-461.2,614.2],[-576.7,439.5]]],"class":"industrial","subclass":null},{"rings":[[[366.6,549.0],[372.5,556.4],[385.3,546.1],[384.8,556.0],[385.8,561.9],[387.8,568.3],[394.2,579.6],[398.7,584.1],[404.1,588.0],[409.5,591.0],[415.4,593.0],[421.9,594.0],[428.3,594.5],[434.7,593.5],[441.1,591.5],[446.5,588.5],[452.0,585.1],[534.4,516.0],[538.3,511.0],[541.3,505.1],[543.3,499.2],[544.3,492.8],[544.8,486.4],[543.8,479.9],[541.8,474.0],[538.8,468.1],[535.4,462.7],[530.4,458.2],[525.5,454.3],[519.6,451.3],[513.7,448.8],[500.8,447.9],[494.4,448.8],[488.5,450.8],[477.1,457.2],[366.6,549.0]]],"class":"track","subclass":null},{"rings":[[[406.1,528.8],[399.1,536.2],[395.2,545.6],[394.7,555.0],[396.7,564.8],[398.7,569.3],[405.1,576.7],[409.0,579.6],[417.9,583.6],[427.8,584.6],[437.7,582.6],[446.0,577.7],[527.0,509.6],[532.4,501.2],[534.9,491.8],[534.4,481.9],[532.9,477.5],[528.0,468.6],[520.6,462.2],[516.1,459.7],[506.3,457.7],[501.8,457.2],[491.9,459.7],[483.6,464.6],[406.1,528.8]]],"class":"track","subclass":null},{"rings":[[[-787.5,714.9],[-686.3,646.3],[-746.5,556.4],[-787.5,584.6],[-787.5,714.9]]],"class":"industrial","subclass":null},{"rings":[[[288.1,389.1],[306.8,373.8],[297.0,362.0],[278.2,377.3],[288.1,389.1]]],"class":"pitch","subclass":null},{"rings":[[[298.5,402.0],[317.7,386.7],[307.8,374.8],[289.1,390.1],[298.5,402.0]]],"class":"pitch","subclass":null},{"rings":[[[309.3,415.3],[328.1,399.5],[318.7,387.6],[299.4,403.4],[309.3,415.3]]],"class":"pitch","subclass":null},{"rings":[[[330.0,398.0],[349.3,382.2],[339.4,370.4],[320.7,386.2],[330.0,398.0]]],"class":"pitch","subclass":null},{"rings":[[[319.7,384.7],[338.4,369.4],[329.1,357.5],[309.8,373.3],[319.7,384.7]]],"class":"pitch","subclass":null},{"rings":[[[308.8,371.9],[327.6,356.5],[318.2,344.7],[299.4,360.0],[308.8,371.9]]],"class":"pitch","subclass":null},{"rings":[[[310.3,416.3],[320.2,428.1],[329.6,420.2],[319.7,408.4],[310.3,416.3]]],"class":"pitch","subclass":null},{"rings":[[[251.6,342.2],[260.0,334.8],[244.7,316.6],[236.3,323.5],[251.6,342.2]]],"class":"pitch","subclass":null},{"rings":[[[265.9,329.9],[274.3,323.0],[259.0,304.7],[250.6,311.6],[265.9,329.9]]],"class":"pitch","subclass":null},{"rings":[[[280.2,318.5],[288.6,311.1],[273.3,292.9],[264.9,299.8],[280.2,318.5]]],"class":"pitch","subclass":null},{"rings":[[[303.4,346.7],[311.8,339.3],[296.5,321.0],[288.1,328.4],[303.4,346.7]]],"class":"pitch","subclass":null},{"rings":[[[289.1,358.5],[297.5,351.1],[282.2,332.9],[273.8,340.3],[289.1,358.5]]],"class":"pitch","subclass":null},{"rings":[[[274.8,370.4],[283.2,363.0],[267.9,344.7],[259.5,351.6],[274.8,370.4]]],"class":"pitch","subclass":null},{"rings":[[[56.6,428.6],[-137.9,592.5],[-155.7,605.3],[-202.1,643.3],[-205.0,650.2],[-224.3,666.0],[-224.8,679.3],[7.7,962.2],[298.0,721.8],[56.6,428.6]]],"class":"residential","subclass":null},{"rings":[[[-734.2,121.6],[-624.1,297.3],[-463.2,546.1],[-334.3,713.9],[380.9,121.6],[-734.2,121.6]]],"class":"farmland","subclass":"farmland"},{"rings":[[[276.2,377.8],[318.7,342.2],[271.8,286.0],[229.3,321.0],[276.2,377.8]]],"class":"grass","subclass":"recreation_ground"},{"rings":[[[-395.1,796.3],[-152.2,1150.2],[-143.8,1160.1],[-20.4,1222.8],[370.0,1676.3],[440.1,1619.1],[426.8,1581.1],[411.5,1549.5],[381.4,1511.5],[360.2,1482.8],[327.1,1451.3],[258.5,1383.2],[240.7,1362.4],[235.8,1343.7],[195.8,1304.7],[157.3,1263.2],[108.9,1224.2],[42.3,1189.2],[5.7,1169.0],[-48.1,1142.8],[-68.3,1129.5],[-93.0,1108.7],[-129.5,1063.8],[-192.7,975.5],[-214.4,955.2],[-216.9,944.4],[-276.1,853.1],[-305.7,815.1],[-322.5,796.8],[-332.4,792.9],[-351.1,768.2],[-395.1,796.3]]],"class":"farmland","subclass":"farmland"},{"rings":[[[537.9,30.3],[351.3,184.8],[666.7,184.8],[537.9,30.3]]],"class":"school","subclass":null},{"rings":[[[-738.6,184.8],[-787.5,108.8],[-787.5,184.8],[-738.6,184.8]]],"class":"industrial","subclass":null},{"rings":[[[-787.5,-979.7],[-784.5,-981.7],[-733.7,-1025.1],[-738.6,-1030.0],[-357.1,-1336.6],[-282.0,-1408.2],[-351.6,-1579.5],[-445.9,-1794.3],[-496.7,-1757.2],[-540.2,-1808.6],[-478.0,-1869.8],[-491.3,-1900.4],[-787.5,-1900.4],[-787.5,-979.7]]],"class":"residential","subclass":null},{"rings":[[[-787.5,-400.1],[-787.5,36.7],[-694.7,184.8],[304.9,184.8],[601.0,-60.5],[641.0,-89.2],[1297.5,-629.2],[1297.5,-1900.4],[-420.2,-1900.4],[-448.9,-1876.2],[-306.7,-1555.8],[-98.9,-1029.5],[-124.1,-1016.7],[-365.4,-816.8],[-107.8,-504.3],[-565.4,-126.2],[-713.9,-310.8],[-787.5,-400.1]]],"class":"farmland","subclass":"farmland"},{"rings":[[[-787.5,-456.4],[-539.7,-662.3],[-673.9,-828.1],[-778.1,-950.6],[-769.7,-957.0],[-773.7,-961.9],[-770.2,-963.9],[-784.5,-981.7],[-787.5,-979.7],[-787.5,-456.4]]],"class":"farmland","subclass":"farmland"}],"pois":[{"class":"school","subclass":"school","name":"Rio Mesa High School","pt":[464.3,341.7]}],"sections":[{"comtrs":"56S02N22W10","lbs":475336,"fumigant_lbs":454454,"top_chemical":"POTASSIUM N-METHYLDITHIOCARBAMATE","ring":[[-1110.1,2111.8],[-1080.6,745.8],[-1075.6,498.2],[-2746.5,513.5],[-2759.2,2127.1],[-1110.1,2111.8]]},{"comtrs":"56S02N22W11","lbs":608330,"fumigant_lbs":547731,"top_chemical":"CHLOROPICRIN","ring":[[548.9,2099.5],[581.9,485.9],[-654.4,494.4],[-1075.6,498.2],[-1080.6,745.8],[-1110.1,2111.8],[548.9,2099.5]]},{"comtrs":"56S02N22W12","lbs":466973,"fumigant_lbs":403085,"top_chemical":"CHLOROPICRIN","ring":[[2172.7,2087.6],[2176.2,1409.0],[2179.0,856.6],[2181.1,474.4],[581.9,485.9],[548.9,2099.5],[2172.7,2087.6]]},{"comtrs":"56S02N22W13","lbs":947974,"fumigant_lbs":637399,"top_chemical":"CHLOROPICRIN","ring":[[581.9,485.9],[2181.1,474.4],[2209.2,-196.5],[2242.2,-1177.0],[614.9,-1157.0],[599.4,-385.4],[581.9,485.9]]},{"comtrs":"56S02N22W14","lbs":1164824,"fumigant_lbs":954855,"top_chemical":"CHLOROPICRIN","ring":[[-1075.6,498.2],[-654.4,494.4],[581.9,485.9],[599.4,-385.4],[614.9,-1157.0],[-1043.3,-1136.6],[-1075.6,498.2]]},{"comtrs":"56S02N22W15","lbs":0,"fumigant_lbs":0,"top_chemical":null,"ring":[[-2746.5,513.5],[-1075.6,498.2],[-1043.3,-1136.6],[-1805.8,-1127.3],[-2743.7,-1115.0],[-2740.9,-122.2],[-2746.5,513.5]]},{"comtrs":"56S02N22W22","lbs":59,"fumigant_lbs":0,"top_chemical":"MINERAL OIL","ring":[[-1043.3,-1136.6],[-1010.3,-2805.9],[-1148.6,-2805.1],[-2747.2,-2775.8],[-2743.7,-1115.0],[-1805.8,-1127.3],[-1043.3,-1136.6]]},{"comtrs":"56S02N22W23","lbs":649269,"fumigant_lbs":436429,"top_chemical":"CHLOROPICRIN","ring":[[614.9,-1157.0],[648.6,-2819.1],[-1010.3,-2805.9],[-1043.3,-1136.6],[614.9,-1157.0]]},{"comtrs":"56S02N22W24","lbs":401021,"fumigant_lbs":214169,"top_chemical":"CHLOROPICRIN","ring":[[2242.2,-1177.0],[2254.9,-1814.4],[2265.4,-2382.5],[2274.5,-2832.7],[648.6,-2819.1],[614.9,-1157.0],[2242.2,-1177.0]]}],"street_names":[{"name":"Central Avenue","pts":[[-1114.2,1103.3],[-803.3,891.1],[-782.5,889.6],[-692.7,947.4]]},{"name":"Beedy Street","pts":[[-692.7,585.6],[-874.8,710.9]]},{"name":"Lambert Street","pts":[[-759.3,122.1],[-796.9,145.8],[-1200.1,423.2],[-1335.9,517.5]]},{"name":"North Vineyard Avenue","pts":[[-779.6,90.0],[-692.7,225.7]]},{"name":"Carnegie Street","pts":[[-990.3,-248.1],[-1109.3,-167.7]]},{"name":"Lambert Street","pts":[[-759.3,122.1],[-796.9,145.8],[-899.0,216.4]]},{"name":"Montgomery Avenue","pts":[[-908.4,-111.9],[-953.3,-79.8],[-1386.2,216.4]]},{"name":"North Vineyard Avenue","pts":[[-2037.8,-1932.0],[-1973.6,-1823.4],[-1943.0,-1773.5],[-1926.7,-1744.4],[-1924.7,-1733.0],[-1879.3,-1659.5],[-1841.3,-1603.2],[-1822.6,-1570.1],[-1749.0,-1454.1],[-1715.0,-1398.3],[-1705.6,-1384.5],[-1569.8,-1160.4],[-1555.5,-1140.6],[-1391.2,-878.5],[-1288.0,-717.6],[-990.3,-248.1],[-908.4,-111.9],[-698.6,216.4]]},{"name":"Central Avenue","pts":[[-819.1,901.9],[-803.3,891.1],[-782.5,889.6],[-633.5,985.4],[-353.6,752.4],[-337.8,744.5]]},{"name":"Beedy Street","pts":[[-533.8,476.5],[-819.1,672.4]]},{"name":"Joan Way","pts":[[-243.5,665.0],[-89.0,851.6],[-80.1,863.4],[6.7,967.6]]},{"name":"Strickland Drive","pts":[[-17.9,478.5],[160.7,693.2],[229.3,779.5],[225.4,787.9],[-107.3,1060.9]]},{"name":"Burson Way","pts":[[-152.7,590.0],[-99.9,650.7],[-130.5,676.4],[67.0,917.7]]},{"name":"Lambert Street","pts":[[-759.3,122.1],[-796.9,145.8],[-819.1,161.1]]},{"name":"Sue Way","pts":[[33.4,750.9],[-27.3,801.8],[-89.0,851.6]]},{"name":"Perry Way","pts":[[-99.9,650.7],[-76.2,632.5],[-70.8,630.0],[-65.3,633.9],[33.4,750.9],[126.7,868.4]]},{"name":"Central Avenue","pts":[[-337.8,744.5],[-243.5,665.0],[87.2,390.6],[201.7,296.8],[316.7,200.1],[450.5,90.0]]},{"name":"North Rose Avenue","pts":[[773.8,90.0],[848.8,170.0],[1174.1,531.3],[1329.1,701.6]]},{"name":"North Vineyard Avenue","pts":[[-779.6,90.0],[-630.0,323.5],[-567.8,424.2],[-490.8,543.6],[-442.9,608.8],[-398.5,667.0],[-337.8,744.5],[-298.8,791.4],[-288.4,805.2],[-279.1,820.5],[-120.6,1044.6],[-107.3,1060.9],[-82.1,1086.0],[-45.1,1114.7],[121.7,1213.4],[146.9,1230.6],[168.1,1246.4],[187.4,1264.2],[205.7,1284.0],[388.8,1488.8],[414.0,1526.8],[425.3,1546.0],[443.6,1584.0],[505.8,1727.1],[521.1,1758.7],[543.8,1794.7],[587.2,1850.0],[676.1,1958.6],[757.5,2054.8],[907.1,2237.9]]},{"name":"Lambert Street","pts":[[-759.3,122.1],[-796.9,145.8],[-819.1,161.1]]},{"name":"Central Avenue","pts":[[297.5,216.4],[1329.1,-637.1]]},{"name":"North Rose Avenue","pts":[[-492.3,-1932.0],[-448.9,-1836.2],[-414.3,-1757.7],[-325.5,-1548.9],[-259.3,-1390.4],[-234.1,-1327.2],[-107.3,-1025.1],[-20.4,-813.3],[-7.6,-786.2],[8.7,-760.0],[26.5,-735.3],[89.2,-663.7],[553.2,-150.4],[632.1,-61.0],[848.8,170.0],[890.8,216.4]]},{"name":"North Vineyard Avenue","pts":[[-819.1,27.8],[-698.6,216.4]]}],"surf":[{"name":"Santa Clara Drain at VCWPD Gage 781 prior to confl w Beardsley Channel","pt":[3505.8,-979.6],"samples":49,"detections":297,"last":"2018-05-15","chems":[{"c":"copper","n":95,"max":613.91},{"c":"chlorpyrifos","n":39,"max":2.841},{"c":"dde","n":29,"max":1.604}]},{"name":"MO-VEN","pt":[-4157.2,-891.7],"samples":63,"detections":255,"last":"2024-09-17","chems":[{"c":"copper","n":119,"max":430.0},{"c":"glyphosate","n":39,"max":130.0},{"c":"malathion","n":32,"max":24.0}]},{"name":"MO-OXN","pt":[-3213.1,-1687.6],"samples":54,"detections":213,"last":"2024-09-17","chems":[{"c":"copper","n":102,"max":140.0},{"c":"glyphosate","n":32,"max":320.0},{"c":"malathion","n":30,"max":1.1}]},{"name":"Oxnard-2","pt":[-3358.5,-895.0],"samples":8,"detections":8,"last":"2023-08-29","chems":[{"c":"copper","n":8,"max":4.3}]}]}</script>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+
+const QS = new URLSearchParams(location.search);
+const D = QS.has('lat')
+  ? await (await fetch(`/api/spatial/place?lat=${QS.get('lat')}&lon=${QS.get('lon')}&name=${encodeURIComponent(QS.get('name')||'Selected place')}`)).json()
+  : JSON.parse(document.getElementById('place').textContent);
+if (QS.has('lat')) {
+  const nm = D.pois[0]?.name || QS.get('name') || 'Selected place', lbs = D.lbs_1250||0
+  const k = document.querySelector('.kicker'); if (k) k.textContent = 'A real place · ' + (QS.get('name') || nm)
+  const dk = document.querySelector('.deck'); if (dk) dk.innerHTML = `<strong id="nB">${Math.min(D.buildings.length,2500)}</strong> real buildings from OpenStreetMap. <strong>${lbs>=1e6?(lbs/1e6).toFixed(2)+' M':Math.round(lbs/1e3)+'k'} lbs</strong> of pesticides recorded within 1.25 km of ${nm}, 2020–2024 (CDPR)`
+}
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stage = document.getElementById('stage');
+const labelsEl = document.getElementById('labels');
+const S = 0.01;                       // 1 world unit = 100 m
+const WALL = 0.075;                   // toy wall height (real 5 m, gently exaggerated)
+
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+/* ---------- renderer / scene ---------- */
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x6e4a2b, 30, 78);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 300);
+
+const hemi = new THREE.HemisphereLight(0xf6dcb4, 0x0d2018, 0.9);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffc48a, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, {left:-16,right:16,top:16,bottom:-16,near:1,far:90});
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.01;
+scene.add(sun, sun.target);
+const fill = new THREE.DirectionalLight(0x7fb0a0, 0.25);
+fill.position.set(-10, 8, 12); scene.add(fill);
+
+/* ---------- helpers ---------- */
+const open = r => (r.length > 1 && r[0][0] === r[r.length-1][0] && r[0][1] === r[r.length-1][1]) ? r.slice(0,-1) : r;
+const toShape = rings => {
+  const sh = new THREE.Shape(open(rings[0]).map(p => new THREE.Vector2(p[0]*S, p[1]*S)));
+  for (let i=1;i<rings.length;i++) sh.holes.push(new THREE.Path(open(rings[i]).map(p => new THREE.Vector2(p[0]*S, p[1]*S))));
+  return sh;
+};
+const area = r => { let a=0; for (let i=0;i<r.length;i++){ const p=r[i], q=r[(i+1)%r.length]; a += p[0]*q[1]-q[0]*p[1]; } return a/2; };
+const centroid = r => {
+  let a=0, cx=0, cy=0;
+  for (let i=0;i<r.length;i++){ const p=r[i], q=r[(i+1)%r.length], f=p[0]*q[1]-q[0]*p[1]; a+=f; cx+=(p[0]+q[0])*f; cy+=(p[1]+q[1])*f; }
+  if (Math.abs(a) < 1e-6){ const n=r.length; return [r.reduce((s,p)=>s+p[0],0)/n, r.reduce((s,p)=>s+p[1],0)/n]; }
+  return [cx/(3*a), cy/(3*a)];
+};
+const inRing = (x, y, r) => { let c=false; for (let i=0,j=r.length-1;i<r.length;j=i++){ const a=r[i], b=r[j]; if ((a[1]>y)!==(b[1]>y) && x < (b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; };
+const inPoly = (x, y, rings) => { let c=false; rings.forEach(r=>{ if (inRing(x,y,r)) c=!c; }); return c; };
+function colorize(geo, hex, jitter=0){
+  geo.deleteAttribute('uv');
+  const n = geo.attributes.position.count, c = new THREE.Color(hex);
+  if (jitter) c.offsetHSL((rnd()-.5)*jitter*.3, (rnd()-.5)*jitter, (rnd()-.5)*jitter);
+  const a = new Float32Array(n*3); for (let i=0;i<n;i++){ a[i*3]=c.r; a[i*3+1]=c.g; a[i*3+2]=c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(a,3));
+  return geo;
+}
+const flatGeo = (rings, y) => { const g = new THREE.ShapeGeometry(toShape(rings)); g.rotateX(-Math.PI/2); g.translate(0,y,0); return g.index ? g.toNonIndexed() : g; };
+const slabGeo = (rings, y0, h) => { const g = new THREE.ExtrudeGeometry(toShape(rings), {depth:h, bevelEnabled:false}); g.rotateX(-Math.PI/2); g.translate(0,y0,0); return g.index ? g.toNonIndexed() : g; };
+const longestEdgeAngle = r => { let best=0, ang=0; for (let i=0;i<r.length;i++){ const p=r[i], q=r[(i+1)%r.length], L=Math.hypot(q[0]-p[0], q[1]-p[1]); if (L>best){best=L; ang=Math.atan2(q[1]-p[1], q[0]-p[0]);} } return ang; };
+/* scanline rows clipped to a polygon (metres in, segments in metres out) */
+function rowsIn(rings, ang, spacing){
+  const c=Math.cos(-ang), s=Math.sin(-ang);
+  const R = rings.map(r => open(r).map(p => [p[0]*c - p[1]*s, p[0]*s + p[1]*c]));
+  let y0=Infinity, y1=-Infinity; R[0].forEach(p=>{ y0=Math.min(y0,p[1]); y1=Math.max(y1,p[1]); });
+  const out = [], ci=Math.cos(ang), si=Math.sin(ang);
+  for (let y=y0+spacing*.5; y<y1; y+=spacing){
+    const xs=[];
+    R.forEach(r=>{ for (let i=0;i<r.length;i++){ const a=r[i], b=r[(i+1)%r.length]; if ((a[1]>y)!==(b[1]>y)) xs.push(a[0] + (y-a[1])*(b[0]-a[0])/(b[1]-a[1])); } });
+    xs.sort((a,b)=>a-b);
+    for (let k=0;k+1<xs.length;k+=2){ const xa=xs[k]+2, xb=xs[k+1]-2; if (xb<=xa) continue;
+      out.push([xa*ci - y*si, xa*si + y*ci, xb*ci - y*si, xb*si + y*ci]); }
+  }
+  return out;
+}
+const fmtLbs = v => v >= 1e6 ? (v/1e6).toFixed(2)+' M' : v >= 1000 ? Math.round(v/1000)+'k' : String(v);
+
+/* ---------- ground ---------- */
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.MeshStandardMaterial({color:0x302d1c, roughness:1}));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+const vcMat = (o={}) => new THREE.MeshStandardMaterial({vertexColors:true, roughness:.95, ...o});
+
+/* ---------- landuse ---------- */
+const landFlat = [], landRaised = [], rowSegs = [], orchardPts = [];
+const LU = {residential:[0xc9b48f,.004], commercial:[0xb29b78,.006], industrial:[0x968a74,.006], garages:[0x968a74,.006], grass:[0x6d8a3c,.007], school:[0x8fb36a,.009]};
+let schoolPoly = null;
+D.landuse.forEach(l=>{
+  const rings = l.rings.map(open);
+  if (l.class === 'farmland'){
+    const sub = l.subclass;
+    const col = sub==='vineyard' ? [0x5d7a31,0x4f6b2c,0x6b8a3a][Math.floor(rnd()*3)] : sub==='orchard' ? 0x3f5a26 : 0x8a7446;
+    const h = sub==='orchard' ? .045 : sub==='vineyard' ? .05 + rnd()*.025 : .06;
+    landRaised.push(colorize(slabGeo(rings, 0, h), col, .06));
+    const ang = longestEdgeAngle(rings[0]);
+    if (sub==='orchard'){
+      const ca=Math.cos(ang), sa=Math.sin(ang); let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+      rings[0].forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);});
+      const cx=(x0+x1)/2, cy=(y0+y1)/2, R=Math.hypot(x1-x0,y1-y0)/2;
+      for (let u=-R;u<=R;u+=13) for (let v=-R;v<=R;v+=13){
+        const x=cx+u*ca-v*sa, y=cy+u*sa+v*ca;
+        if (inPoly(x,y,rings)) orchardPts.push([x,y,h]);
+      }
+    } else {
+      rowsIn(rings, ang, sub==='vineyard' ? 9 : 18).forEach(s=>rowSegs.push(s[0]*S, h+.003, -s[1]*S, s[2]*S, h+.003, -s[3]*S));
+    }
+  } else {
+    const k = LU[l.class] || [0xb8a888,.004];
+    landFlat.push(colorize(flatGeo(rings, k[1]), k[0], l.class==='residential' ? .03 : .02));
+    if (l.class === 'school') schoolPoly = rings;
+  }
+});
+const landFlatMesh = new THREE.Mesh(mergeGeometries(landFlat), vcMat()); landFlatMesh.receiveShadow = true; scene.add(landFlatMesh);
+const landRaisedMesh = new THREE.Mesh(mergeGeometries(landRaised), vcMat({roughness:.92})); landRaisedMesh.receiveShadow = landRaisedMesh.castShadow = true; scene.add(landRaisedMesh);
+const rowGeo = new THREE.BufferGeometry(); rowGeo.setAttribute('position', new THREE.Float32BufferAttribute(rowSegs,3));
+scene.add(new THREE.LineSegments(rowGeo, new THREE.LineBasicMaterial({color:0x22300f, transparent:true, opacity:.42})));
+if (orchardPts.length){
+  const tm = new THREE.InstancedMesh(new THREE.SphereGeometry(.042, 8, 6), new THREE.MeshStandardMaterial({color:0x2f4a26, roughness:1}), orchardPts.length);
+  const m=new THREE.Matrix4();
+  orchardPts.forEach((p,i)=>{ const s=.8+rnd()*.45; m.compose(new THREE.Vector3(p[0]*S, p[2]+.03*s, -p[1]*S), new THREE.Quaternion(), new THREE.Vector3(s,s*.9,s)); tm.setMatrixAt(i,m); });
+  tm.castShadow = true; scene.add(tm);
+}
+
+/* ---------- water ---------- */
+const waterMat = new THREE.MeshStandardMaterial({color:0x3f9bd0, emissive:0x1f6f9f, emissiveIntensity:.55, roughness:.15, metalness:.3});
+const wGeos = D.water.map(w => { const g = flatGeo(w.rings.map(open), .011); g.deleteAttribute('uv'); return g; });
+D.waterways.forEach(w=>{ const g = ribbon(w.pts, w.class==='canal' ? 14 : w.class==='river' ? 20 : 7, .016); if (g) wGeos.push(g); });
+if (wGeos.length) scene.add(new THREE.Mesh(mergeGeometries(wGeos), waterMat));
+
+/* ---------- roads ---------- */
+function ribbon(pts, widthM, y){
+  if (pts.length < 2) return null;
+  const hw = widthM*S/2, pos = [];
+  const P = pts.map(p=>[p[0]*S, -p[1]*S]);
+  const nrm = i => { const a=P[Math.max(0,i-1)], b=P[Math.min(P.length-1,i+1)]; const dx=b[0]-a[0], dz=b[1]-a[1], L=Math.hypot(dx,dz)||1; return [-dz/L, dx/L]; };
+  for (let i=0;i<P.length-1;i++){
+    const n0=nrm(i), n1=nrm(i+1), a=P[i], b=P[i+1];
+    const A=[a[0]+n0[0]*hw, y, a[1]+n0[1]*hw], B=[a[0]-n0[0]*hw, y, a[1]-n0[1]*hw], C=[b[0]+n1[0]*hw, y, b[1]+n1[1]*hw], E=[b[0]-n1[0]*hw, y, b[1]-n1[1]*hw];
+    pos.push(...A, ...B, ...C, ...C, ...B, ...E);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  const nn = new Float32Array(pos.length); for (let i=1;i<nn.length;i+=3) nn[i]=1; g.setAttribute('normal', new THREE.BufferAttribute(nn,3));
+  return g;
+}
+const RW = {tertiary:[13,0xe2d2b2], minor:[9,0xd8c7a6], service:[5,0xcdbd9c], track:[3.5,0xb8a582]};
+const roadGeos = [];
+D.roads.forEach(r=>{ const k = RW[r.class] || RW.service; const g = ribbon(r.pts, k[0], r.class==='tertiary'?.016:r.class==='minor'?.015:.014); if (g) roadGeos.push(colorize(g, k[1])); });
+const roadMesh = new THREE.Mesh(mergeGeometries(roadGeos), vcMat({roughness:1}));
+roadMesh.receiveShadow = true; scene.add(roadMesh);
+
+/* ---------- filler fields beyond the mapped area (generic, unlabelled) ---------- */
+const MASK_R = 1200, MPX = 10, MN = MASK_R*2/MPX;
+const mc = document.createElement('canvas'); mc.width = mc.height = MN;
+const mx = mc.getContext('2d'); mx.fillStyle = mx.strokeStyle = '#000';
+const mpt = p => [(p[0]+MASK_R)/MPX, (MASK_R-p[1])/MPX];
+const fillRings = rings => { mx.beginPath(); rings.forEach(r=>{ r.forEach((p,i)=>{ const q=mpt(p); i?mx.lineTo(q[0],q[1]):mx.moveTo(q[0],q[1]); }); mx.closePath(); }); mx.fill(); mx.lineWidth=2; mx.stroke(); };
+D.landuse.forEach(l=>fillRings(l.rings)); D.water.forEach(w=>fillRings(w.rings)); D.buildings.forEach(b=>fillRings(b.rings));
+[...D.roads, ...D.waterways].forEach(r=>{ mx.lineWidth=3; mx.beginPath(); r.pts.forEach((p,i)=>{ const q=mpt(p); i?mx.lineTo(q[0],q[1]):mx.moveTo(q[0],q[1]); }); mx.stroke(); });
+const md = mx.getImageData(0,0,MN,MN).data;
+const occupied = (x,y) => { if (Math.abs(x)>=MASK_R || Math.abs(y)>=MASK_R) return false; const q=mpt([x,y]); return md[((q[1]|0)*MN + (q[0]|0))*4+3] > 20; };
+const STEP = 1.2, tiles = [];
+for (let x=-30; x<=30; x+=STEP) for (let z=-30; z<=30; z+=STEP){
+  let hit = false;
+  for (let i=0;i<5 && !hit;i++) for (let j=0;j<5 && !hit;j++) hit = occupied((x + (i/4-.5)*(STEP-.1))/S, -(z + (j/4-.5)*(STEP-.1))/S);
+  if (!hit) tiles.push({x, z});
+}
+const fieldPalette = [0x4f6b2c,0x5d7a31,0x3f5a26,0x6e7a35,0x7a6a3a,0x8a7446,0x5a4a2e,0x6b8a3a];
+const tileMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({roughness:.92}), tiles.length);
+tileMesh.receiveShadow = true;
+const m4 = new THREE.Matrix4(), col = new THREE.Color(), qI = new THREE.Quaternion();
+const tileRows = [];
+tiles.forEach((t,i)=>{
+  const h = .03 + rnd()*.07;
+  m4.compose(new THREE.Vector3(t.x, h/2, t.z), qI, new THREE.Vector3(STEP-.12, h, STEP-.12)); tileMesh.setMatrixAt(i, m4);
+  col.setHex(fieldPalette[Math.floor(rnd()*fieldPalette.length)]).offsetHSL(0,0,(rnd()-.5)*.04); tileMesh.setColorAt(i, col);
+  if (rnd() < .4){ const vert = rnd()<.5; for (let k=-4;k<=4;k++){ const o=k*.12; vert ? tileRows.push(t.x+o,h+.003,t.z-.5, t.x+o,h+.003,t.z+.5) : tileRows.push(t.x-.5,h+.003,t.z+o, t.x+.5,h+.003,t.z+o); } }
+});
+scene.add(tileMesh);
+const trGeo = new THREE.BufferGeometry(); trGeo.setAttribute('position', new THREE.Float32BufferAttribute(tileRows,3));
+scene.add(new THREE.LineSegments(trGeo, new THREE.LineBasicMaterial({color:0x2c3a18, transparent:true, opacity:.32})));
+
+/* ---------- buildings: toy houses on real footprints ---------- */
+function obb(r){
+  let best = null;
+  for (let i=0;i<r.length;i++){
+    const p=r[i], q=r[(i+1)%r.length], a=Math.atan2(q[1]-p[1], q[0]-p[0]), c=Math.cos(a), s=Math.sin(a);
+    let u0=Infinity,u1=-Infinity,v0=Infinity,v1=-Infinity;
+    r.forEach(pt=>{ const u=pt[0]*c+pt[1]*s, v=-pt[0]*s+pt[1]*c; u0=Math.min(u0,u);u1=Math.max(u1,u);v0=Math.min(v0,v);v1=Math.max(v1,v); });
+    const A=(u1-u0)*(v1-v0);
+    if (!best || A < best.A){ const uc=(u0+u1)/2, vc=(v0+v1)/2; best = {A, a, L:u1-u0, W:v1-v0, cx:uc*c - vc*s, cy:uc*s + vc*c}; }
+  }
+  if (best.W > best.L){ best = {...best, a:best.a+Math.PI/2, L:best.W, W:best.L}; }
+  return best;
+}
+function gable(L, W, H){
+  const l=L/2, w=W/2, p=[
+    -l,0,-w,  l,0,-w,  l,H,0,   -l,0,-w,  l,H,0,  -l,H,0,     // slope 1
+    -l,0, w, -l,H,0,  l,H,0,    -l,0, w,  l,H,0,   l,0, w,    // slope 2
+    -l,0,-w, -l,H,0, -l,0, w,    l,0,-w,  l,0, w,   l,H,0,    // gables
+  ];
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p,3)); g.computeVertexNormals(); return g;
+}
+const wallCols = [0xf4eee2,0xefe4cf,0xf6efe6,0xe9dcc6];
+const roofCols = [0xcfc6b6,0xc4a088,0xb9b3a6,0xd2b594,0xa99a8a];
+const B = [], wallGeos = [], roofGeos = [];
+let wv = 0, rv = 0;
+D.buildings.forEach(b=>{
+  const r = open(b.rings[0]); if (r.length < 3) return;
+  const A = Math.abs(area(r)), [cx, cy] = centroid(r);
+  const school = schoolPoly && inPoly(cx, cy, schoolPoly);
+  const wc = new THREE.Color(school ? 0xf7f3ea : wallCols[Math.floor(rnd()*wallCols.length)]);
+  const rc = new THREE.Color(school ? 0xd9d2c4 : roofCols[Math.floor(rnd()*roofCols.length)]);
+  const hw = WALL + Math.min(A/30000, .04) + (b.h-5)*S;
+  const wg = slabGeo(b.rings.map(open), 0, hw); wg.deleteAttribute('uv');
+  const o = obb(r);
+  let rg;
+  if (r.length <= 6 && A < 600 && o.W > 3){
+    const W = o.W*S*1.1, L = o.L*S*1.06, H = Math.min(W*.42, .07);
+    rg = gable(L, W, H); rg.rotateY(o.a); rg.translate(o.cx*S, hw, -o.cy*S);
+  } else {
+    rg = slabGeo(b.rings.map(open), hw, .012); rg.deleteAttribute('uv');
+  }
+  const nW = wg.attributes.position.count, nR = rg.attributes.position.count;
+  wallGeos.push(wg); roofGeos.push(rg);
+  B.push({x:cx*S, z:-cy*S, w0:wv, wn:nW, r0:rv, rn:nR, wc, rc, c:0, school});
+  wv += nW; rv += nR;
+});
+const wallGeo = mergeGeometries(wallGeos), roofGeo = mergeGeometries(roofGeos);
+wallGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(wv*3),3));
+roofGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(rv*3),3));
+const wallMesh = new THREE.Mesh(wallGeo, vcMat({roughness:.7}));
+const roofMesh = new THREE.Mesh(roofGeo, vcMat({roughness:.8}));
+wallMesh.castShadow = roofMesh.castShadow = wallMesh.receiveShadow = roofMesh.receiveShadow = true;
+scene.add(wallMesh, roofMesh);
+document.getElementById('nB').textContent = B.length;
+/* school outline */
+B.filter(b=>b.school).forEach(b=>{
+  const g = new THREE.EdgesGeometry(wallGeos[B.indexOf(b)], 30);
+  scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({color:0x7FE3A8, transparent:true, opacity:.8})));
+});
+
+/* ---------- POIs (deduped) ---------- */
+const seen = new Set(), pois = [];
+D.pois.forEach(p=>{ const k = p.class+'|'+Math.round(p.pt[0]/5)+'|'+Math.round(p.pt[1]/5); if (!seen.has(k)){ seen.add(k); pois.push(p); } });
+const schoolPoi = pois.find(p=>p.class==='school');
+const SCHOOL = new THREE.Vector2(schoolPoi.pt[0]*S, -schoolPoi.pt[1]*S);
+const tags = [];
+function addTag(cls, html, pos){ const el=document.createElement('div'); el.className=cls; el.innerHTML=html; labelsEl.appendChild(el); tags.push({el, p:pos}); return el; }
+const POI_TXT = {school:['tag school','School · Rio Mesa High<i>Ventura County</i>'], fuel:['tag poi','Gas station'], fire_station:['tag poi','Fire station'], place_of_worship:['tag poi','Church']};
+Object.assign(POI_TXT, {
+  school: ['tag school', `School · ${(pois[0]&&pois[0].name)||'School'}`],
+  fuel: ['tag poi lm-fuel', 'Gas station'], fire_station: ['tag poi lm-fire', 'Fire station'],
+  place_of_worship: ['tag poi lm-church', 'Church'], hospital: ['tag poi lm-hosp', 'Hospital / clinic'],
+  grocery: ['tag poi lm-shop', 'Supermarket'], shop: ['tag poi lm-shop', 'Supermarket'], park: ['tag poi lm-park', 'Park'],
+  water_tower: ['tag poi lm-water', 'Water tower'], drinking_water: ['tag poi lm-water', 'Drinking water'] });
+const LM_COL = { fuel:0xffb347, fire_station:0xff6b5b, place_of_worship:0xc9a7ff, hospital:0xff7aa8, grocery:0x7fd7ff, shop:0x7fd7ff, park:0x8fe39b, water_tower:0x6fc8ff, drinking_water:0x6fc8ff };
+pois.forEach(p=>{ const tx = POI_TXT[p.class]; if (!tx) return;
+  const label = p.name && p.class!=='school' ? `${tx[1]} · ${p.name}` : tx[1];
+  addTag(tx[0], label, new THREE.Vector3(p.pt[0]*S, p.class==='school' ? .32 : .2, -p.pt[1]*S));
+  const col = LM_COL[p.class]; if (!col) return;
+  const beacon = new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.5,12), new THREE.MeshBasicMaterial({color:col}));
+  beacon.position.set(p.pt[0]*S, .27, -p.pt[1]*S); scene.add(beacon);
+  const halo = new THREE.Mesh(new THREE.RingGeometry(.22,.3,40), new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:.85, side:THREE.DoubleSide, depthWrite:false}));
+  halo.rotation.x=-Math.PI/2; halo.position.set(p.pt[0]*S,.03,-p.pt[1]*S); scene.add(halo);
+});
+/* canals and creeks: name them */
+{ const seenW = new Set();
+  D.waterways.forEach(w=>{ const nm = w.name || (w.class==='canal' ? 'Irrigation canal' : w.class==='ditch' || w.class==='drain' ? 'Drainage ditch' : null);
+    if (!nm || seenW.has(nm)) return; const mid = w.pts[Math.floor(w.pts.length/2)]; if (Math.hypot(mid[0],mid[1])>950) return; seenW.add(nm);
+    addTag('tag water', nm, new THREE.Vector3(mid[0]*S, .08, -mid[1]*S)); }); }
+/* measured water pollution: CDPR SURF sampling sites nearby */
+(D.surf||[]).slice(0,3).forEach(s=>{
+  const top = s.chems.map(c=>`${c.c} ×${c.n}`).join(' · ');
+  addTag('tag surf', `Water sample · ${s.detections} detections<i>${top || 'no detections'} · CDPR SURF · last ${s.last.slice(0,4)}</i>`, new THREE.Vector3(Math.max(-9.5,Math.min(9.5,s.pt[0]*S)), .3, Math.max(-9.5,Math.min(9.5,-s.pt[1]*S))));
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.6,8), new THREE.MeshBasicMaterial({color:0x8fd8ff})); pin.position.set(Math.max(-9.5,Math.min(9.5,s.pt[0]*S)),.3,Math.max(-9.5,Math.min(9.5,-s.pt[1]*S))); scene.add(pin); });
+/* real street names (OpenStreetMap), one label per street at its longest visible segment */
+{ const best = new Map();
+  (D.street_names||[]).forEach(s=>{ let L=0; for(let i=1;i<s.pts.length;i++) L+=Math.hypot(s.pts[i][0]-s.pts[i-1][0], s.pts[i][1]-s.pts[i-1][1]);
+    const mid = s.pts[Math.floor(s.pts.length/2)]; if (Math.hypot(mid[0],mid[1])>850) return;
+    const cur = best.get(s.name); if (!cur || L>cur.L) best.set(s.name,{L,mid}); });
+  [...best.entries()].sort((a,b)=>b[1].L-a[1].L).slice(0,16).forEach(([name,{mid}])=>{
+    const el = addTag('tag street', name, new THREE.Vector3(mid[0]*S, .05, -mid[1]*S)); }); }
+
+/* school ring */
+const ringMat = new THREE.MeshBasicMaterial({color:0x7FE3A8, transparent:true, opacity:.7, side:THREE.DoubleSide, depthWrite:false});
+const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.54, 128), ringMat); ring.rotation.x=-Math.PI/2; ring.position.set(SCHOOL.x,.03,SCHOOL.y); scene.add(ring);
+const ring2 = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.52, 128), ringMat.clone()); ring2.rotation.x=-Math.PI/2; ring2.position.copy(ring.position); scene.add(ring2);
+const glow = new THREE.Mesh(new THREE.CircleGeometry(1.5, 96), new THREE.MeshBasicMaterial({color:0x7FE3A8, transparent:true, opacity:.06, depthWrite:false}));
+glow.rotation.x=-Math.PI/2; glow.position.set(SCHOOL.x,.025,SCHOOL.y); scene.add(glow);
+/* 1.25 km radius used for the CDPR total */
+{ const pts=[]; for (let i=0;i<=160;i++){ const a=i/160*Math.PI*2; pts.push(new THREE.Vector3(SCHOOL.x+Math.cos(a)*12.5, .14, SCHOOL.y+Math.sin(a)*12.5)); }
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({color:0x7FE3A8, dashSize:.12, gapSize:.22, transparent:true, opacity:.35}));
+  l.computeLineDistances(); scene.add(l);
+  addTag('sec', '1.25 km · 4.31 M lbs recorded', new THREE.Vector3(SCHOOL.x, .14, SCHOOL.y+12.5)).style.color='rgba(127,227,168,.75)'; }
+
+/* ---------- PUR sections ---------- */
+const secs = D.sections.map(s=>{ const r=open(s.ring); const c=centroid(r); return {...s, r, cx:c[0]*S, cz:-c[1]*S}; });
+const app = secs.reduce((a,b)=> (b.fumigant_lbs > a.fumigant_lbs || (b.fumigant_lbs===a.fumigant_lbs && b.lbs > a.lbs)) ? b : a);
+const SRC = new THREE.Vector2(app.cx, app.cz);
+const secNo = s => { const m = /M(\d+)([NS])(\d+)([EW])(\d+)$/.exec(s.comtrs); return m ? {sec:+m[5], tr:`T${+m[1]}${m[2]} R${+m[3]}${m[4]}`} : {sec:s.comtrs, tr:''}; };
+let srcLine;
+secs.forEach(s=>{
+  const pts = [...s.r, s.r[0]].map(p=>new THREE.Vector3(p[0]*S, .13, -p[1]*S));
+  const isApp = s === app;
+  const mat = isApp ? new THREE.LineBasicMaterial({color:0xE8823A, transparent:true, opacity:.95})
+                    : new THREE.LineDashedMaterial({color:0xEEE8DC, dashSize:.35, gapSize:.25, transparent:true, opacity:.3});
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
+  if (!isApp) line.computeLineDistances(); else srcLine = line;
+  scene.add(line);
+  if (!isApp && s.lbs > 0) addTag('sec', `${fmtLbs(s.lbs)} lbs · ${(s.top_chemical||'').toLowerCase()}`, new THREE.Vector3(s.cx, .14, s.cz));
+});
+const an = secNo(app);
+addTag('tag src', `Application site · Sec ${an.sec} · ${an.tr}<i>${fmtLbs(app.lbs)} lbs · ${fmtLbs(app.fumigant_lbs)} lbs fumigants · top: ${(app.top_chemical||'').toLowerCase()} · 2020–24</i>`, new THREE.Vector3(SRC.x, .3, SRC.y));
+document.getElementById('hSec').innerHTML = `Sec ${an.sec} · ${an.tr} · <b>${fmtLbs(app.lbs)} lbs</b> on file`;
+/* source marker */
+const srcPin = new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.5,8), new THREE.MeshBasicMaterial({color:0xE8823A}));
+srcPin.position.set(SRC.x,.25,SRC.y); scene.add(srcPin);
+const srcDisc = new THREE.Mesh(new THREE.RingGeometry(.25,.3,48), new THREE.MeshBasicMaterial({color:0xE8823A, transparent:true, side:THREE.DoubleSide, depthWrite:false}));
+srcDisc.rotation.x=-Math.PI/2; srcDisc.position.set(SRC.x,.14,SRC.y); scene.add(srcDisc);
+
+/* ---------- plume ---------- */
+const U = {uSrc:{value:SRC.clone()}, uDir:{value:new THREE.Vector2(1,0)}, uTime:{value:0}, uFront:{value:reduce?90:30},
+  uSpread:{value:.085}, uDecay:{value:.05}, uAmp:{value:1.5}};
+const plumeVS = `varying vec2 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xz; gl_Position = projectionMatrix*viewMatrix*w; }`;
+const plumeFS = `
+uniform vec2 uSrc; uniform vec2 uDir; uniform float uTime; uniform float uFront; uniform float uLayer; uniform float uAlpha;
+uniform float uSpread; uniform float uDecay; uniform float uAmp;
+varying vec2 vW;
+float h(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+float fbm(vec2 p){ float v=0., a=.5; for(int i=0;i<4;i++){ v+=a*n(p); p*=2.03; a*=.5; } return v; }
+void main(){
+  vec2 d = vW - uSrc; vec2 nrm = vec2(-uDir.y,uDir.x);
+  float x = dot(d,uDir), y = dot(d,nrm);
+  float xp = max(x, 0.);
+  float sig = .35 + uSpread*xp*(1.-.25*uLayer);
+  float body = uAmp * exp(-y*y/(2.*sig*sig)) / (1. + uDecay*xp);
+  float start = smoothstep(-.35, .7, x + .35*uLayer);
+  float front = 1. - smoothstep(uFront-3., uFront, x);
+  float tex = fbm(vW*.5 - uDir*uTime*.55 + uLayer*3.1);
+  float c = body * start * front * (.62 + .7*tex);
+  float sU = sig*1.95;
+  float env = uAmp * exp(-y*y/(2.*sU*sU)) / (1. + uDecay*xp) * start * front - body*start*front;
+  float stripe = step(.55, fract((vW.x - vW.y)*3.2));
+  vec3 ember = vec3(.91,.51,.23), red = vec3(.76,.21,.17), gold = vec3(1.,.78,.45);
+  vec3 colr = mix(gold, ember, smoothstep(.05,.35,c)); colr = mix(colr, red, smoothstep(.45,.95,c));
+  float a = smoothstep(.04,.9,c) * .72 * uAlpha;
+  float aU = clamp(env,0.,1.) * stripe * .2 * uAlpha * step(uLayer,.5);
+  vec3 outc = mix(ember, colr, a/(a+aU+1e-4));
+  float A = clamp(a + aU, 0., 1.);
+  if (A < .004) discard;
+  gl_FragColor = vec4(outc, A);
+}`;
+const plumes = [];
+[[0,.0,1.],[1,.4,.4],[2,.9,.2]].forEach(([layer,y,alpha])=>{
+  const mat = new THREE.ShaderMaterial({vertexShader:plumeVS, fragmentShader:plumeFS, transparent:true, depthWrite:false, fog:false,
+    uniforms:{...U, uLayer:{value:layer}, uAlpha:{value:alpha}}});
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(130,130), mat);
+  p.rotation.x = -Math.PI/2; p.position.set(SRC.x, .2 + y, SRC.y); p.renderOrder = 2 + layer; scene.add(p); plumes.push(p);
+});
+
+/* ---------- wind streaks ---------- */
+const N = reduce ? 200 : 520, CX = (SRC.x+SCHOOL.x)/2, CZ = (SRC.y+SCHOOL.y)/2, HX = 26, HZ = 22;
+const sPos = new Float32Array(N*6), sState = [];
+for (let i=0;i<N;i++) sState.push({x:CX+(rnd()-.5)*2*HX, z:CZ+(rnd()-.5)*2*HZ, y:.3+rnd()*2.4, s:.6+rnd()*.8, l:.3+rnd()*.6});
+const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3));
+const streaks = new THREE.LineSegments(sGeo, new THREE.LineBasicMaterial({color:0xf5ead6, transparent:true, opacity:.36, depthWrite:false}));
+streaks.renderOrder = 6; scene.add(streaks);
+
+/* ---------- camera / controls ---------- */
+const target = new THREE.Vector3(SCHOOL.x*0.6 + SRC.x*0.4, 0, (SCHOOL.y+SRC.y)/2 - 0.6);
+camera.position.copy(target).add(new THREE.Vector3(-8.5, 13.5, 19));
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(target);
+Object.assign(controls, {enableDamping:!reduce, dampingFactor:.08, minDistance:3, maxDistance:70, maxPolarAngle:1.38, minPolarAngle:.15, zoomSpeed:.9, rotateSpeed:.6});
+controls.update();
+controls.addEventListener('change', ()=>{ if (reduce) render(); });
+
+/* ---------- wind / scenario state ---------- */
+const dirVec = new THREE.Vector2();
+let camYaw = 0;
+let windDeg = Math.atan2(SCHOOL.x-SRC.x, -(SCHOOL.y-SRC.y)) * 180/Math.PI;
+let speed = 1.6, mode = 'calm';
+const MODES = {
+  calm:{speed:1.6, spread:.085, decay:.05, stab:1.15, air:'Stable · inversion', time:'06:40', sky:'Golden hour', sunOff:[24,6.5,9], sunCol:0xffc48a, sunI:2.4, hemiI:.9, fog:0x6e4a2b},
+  windy:{speed:5.2, spread:.2, decay:.07, stab:.78, air:'Unstable · mixing', time:'14:00', sky:'Afternoon', sunOff:[-6,26,13], sunCol:0xffe7c8, sunI:2.7, hemiI:1.1, fog:0x7a5c3a},
+};
+const pts16 = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const cEmber = new THREE.Color(0xE8823A), cRed = new THREE.Color(0xC2362B), tmp = new THREE.Color();
+
+function concAt(x, z, front){
+  const dx = x-SRC.x, dz = z-SRC.y;
+  const along = dx*dirVec.x + dz*dirVec.y, cross = -dx*dirVec.y + dz*dirVec.x;
+  if (along < 0) return 0;
+  const sig = .35 + U.uSpread.value*along;
+  const fr = 1 - THREE.MathUtils.smoothstep(along, front-3, front);
+  return U.uAmp.value * Math.exp(-cross*cross/(2*sig*sig)) / (1 + U.uDecay.value*along) * fr;
+}
+function applyScenario(){
+  const M = MODES[mode];
+  U.uSpread.value = M.spread; U.uDecay.value = M.decay;
+  U.uAmp.value = THREE.MathUtils.clamp(M.stab * 1.75 / Math.sqrt(Math.max(speed,.5)), .25, 2.2);
+  document.getElementById('rWind').textContent = `${pts16[Math.round(((windDeg+180)%360)/22.5)%16]} · ${speed.toFixed(1)} m/s`;
+  const sp = document.getElementById('speed'); sp.style.setProperty('--p', ((speed-.5)/8.5*100)+'%');
+  document.getElementById('rSpeed').textContent = speed.toFixed(1)+' m/s';
+}
+function setMode(m){
+  mode = m; const M = MODES[m]; speed = M.speed; document.getElementById('speed').value = speed;
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.t===m));
+  document.getElementById('rAir').textContent = M.air;
+  document.getElementById('hTime').textContent = M.time; document.getElementById('hSky').textContent = M.sky;
+  sun.position.copy(target).add(new THREE.Vector3(...M.sunOff)); sun.target.position.copy(target);
+  sun.color.setHex(M.sunCol); sun.intensity = M.sunI; hemi.intensity = M.hemiI; scene.fog.color.setHex(M.fog);
+  stage.classList.toggle('noon', m==='windy');
+  applyScenario(); if (reduce) render();
+}
+function setWind(deg){
+  windDeg = ((deg % 360) + 360) % 360;
+  const r = windDeg*Math.PI/180;
+  dirVec.set(Math.sin(r), -Math.cos(r));
+  plumes.forEach(p=>p.material.uniforms.uDir.value.copy(dirVec));
+  document.getElementById('needle').setAttribute('transform', `rotate(${windDeg - camYaw})`);
+  document.getElementById('compass').setAttribute('aria-valuenow', Math.round(windDeg));
+  applyScenario();
+}
+let lastHomes = -1, lastSchool = '';
+const wc = wallGeo.attributes.color.array, rc = roofGeo.attributes.color.array;
+function paint(arr, start, n, c){ for (let i=start*3, e=(start+n)*3; i<e; i+=3){ arr[i]=c.r; arr[i+1]=c.g; arr[i+2]=c.b; } }
+function updateTints(front, snap){
+  let count = 0;
+  B.forEach(b=>{
+    const c = concAt(b.x, b.z, front);
+    b.c = snap ? c : b.c + (c - b.c) * .18;
+    const k = THREE.MathUtils.clamp(b.c, 0, 1);
+    if (b.c > .1) count++;
+    tmp.copy(b.wc).lerp(cEmber, Math.min(k*1.5,1)).lerp(cRed, Math.max(0,(k-.55)/.45)); paint(wc, b.w0, b.wn, tmp);
+    tmp.copy(b.rc).lerp(cEmber, Math.min(k*1.3,1)*.85).lerp(cRed, Math.max(0,(k-.6)/.4)*.8); paint(rc, b.r0, b.rn, tmp);
+  });
+  wallGeo.attributes.color.needsUpdate = roofGeo.attributes.color.needsUpdate = true;
+  const sc = concAt(SCHOOL.x, SCHOOL.y, front);
+  const label = sc > .5 ? 'High' : sc > .2 ? 'Moderate' : sc > .06 ? 'Low' : 'Not downwind';
+  const hot = sc > .2;
+  ringMat.color.setHex(hot ? 0xE8823A : 0x7FE3A8); ring2.material.color.copy(ringMat.color); glow.material.color.copy(ringMat.color);
+  if (count !== lastHomes){ lastHomes = count; document.getElementById('rHomes').textContent = `${count} of ${B.length}`; }
+  if (label !== lastSchool){ lastSchool = label; const el = document.getElementById('rSchool'); el.textContent = label; el.className = hot ? 'hot' : label==='Not downwind' ? 'ok' : ''; }
+}
+
+/* compass rose */
+const rose = document.getElementById('rose');
+let roseSVG = '';
+for (let i=0;i<72;i++){
+  const a = i*5, major = i%18===0, mid = i%6===0;
+  roseSVG += `<line x1="0" y1="-56" x2="0" y2="${major?-48:mid?-51:-53.5}" stroke="rgba(238,232,220,${major?.8:.3})" stroke-width="${major?1.2:.7}" transform="rotate(${a})"/>`;
+}
+['N','E','S','W'].forEach((t,i)=>{
+  const a = (i*90)*Math.PI/180, r = 39;
+  roseSVG += `<text x="${Math.sin(a)*r}" y="${-Math.cos(a)*r+3}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="${t==='N'?'#7FE3A8':'rgba(238,232,220,.6)'}" transform="rotate(0 ${Math.sin(a)*r} ${-Math.cos(a)*r})">${t}</text>`;
+});
+rose.innerHTML = roseSVG;
+function syncYaw(){
+  const f = new THREE.Vector3().subVectors(controls.target, camera.position);
+  const y = Math.atan2(f.x, -f.z) * 180/Math.PI;
+  if (Math.abs(y - camYaw) < .05) return;
+  camYaw = y;
+  rose.setAttribute('transform', `rotate(${-camYaw})`);
+  document.getElementById('needle').setAttribute('transform', `rotate(${windDeg - camYaw})`);
+}
+
+const compass = document.getElementById('compass');
+let dragging = false;
+function fromPointer(e){
+  const b = compass.getBoundingClientRect();
+  const dx = e.clientX - (b.left + b.width/2), dy = e.clientY - (b.top + b.height/2);
+  setWind(Math.atan2(dx, -dy)*180/Math.PI + camYaw);
+  if (reduce) render();
+}
+compass.addEventListener('pointerdown', e=>{ dragging = true; compass.setPointerCapture(e.pointerId); fromPointer(e); });
+compass.addEventListener('pointermove', e=>{ if (dragging) fromPointer(e); });
+compass.addEventListener('pointerup', ()=> dragging = false);
+compass.addEventListener('pointercancel', ()=> dragging = false);
+addEventListener('keydown', e=>{
+  if (e.target.tagName === 'INPUT') return;
+  const k = {ArrowLeft:-5, ArrowDown:-5, ArrowRight:5, ArrowUp:5}[e.key];
+  if (k){ e.preventDefault(); setWind(windDeg + (e.shiftKey ? k*3 : k)); if (reduce) render(); }
+});
+document.getElementById('speed').addEventListener('input', e=>{ speed = +e.target.value; applyScenario(); if (reduce) render(); });
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click', ()=>setMode(b.dataset.t)));
+
+/* ---------- labels ---------- */
+const v3 = new THREE.Vector3();
+function placeTags(w, h){
+  const dist = camera.position.distanceTo(controls.target);
+  const placed = [];
+  tags.forEach(t=>{
+    v3.copy(t.p).project(camera);
+    let vis = v3.z < 1 && Math.abs(v3.x) < .96 && v3.y < .92 && v3.y > -.96;
+    if (vis && t.el.classList.contains('sec')) vis = camera.position.distanceTo(t.p) < 62;
+    if (vis && t.el.classList.contains('poi')) vis = dist < 40;
+    const sx = (v3.x+1)/2*w, sy = (1-v3.y)/2*h;
+    if (vis) vis = !blockers.some(b => sx > b.left-8 && sx < b.right+8 && sy > b.top-8 && sy < b.bottom+20);
+    if (vis) { const bw = t.el.offsetWidth || 80, bh = 14;
+      const box = {l:sx-bw/2-6, r:sx+bw/2+6, t:sy-bh-6, b:sy+6};
+      if (placed.some(q => box.l<q.r && box.r>q.l && box.t<q.b && box.b>q.t)) vis = false; else placed.push(box); }
+    t.el.style.opacity = vis ? 1 : 0;
+    t.el.style.left = ((v3.x+1)/2*w) + 'px'; t.el.style.top = ((1-v3.y)/2*h) + 'px';
+  });
+}
+
+/* ---------- resize ---------- */
+let W = 1, H = 1, blockers = [];
+function resize(){
+  blockers = ['.title','.panel','.legend','.overlay-top'].map(s=>document.querySelector(s)).filter(e=>e && e.offsetParent!==null).map(e=>e.getBoundingClientRect());
+  W = stage.clientWidth; H = stage.clientHeight;
+  renderer.setSize(W, H, false);
+  camera.aspect = W/H;
+  camera.fov = W/H < .8 ? 52 : 34;
+  camera.updateProjectionMatrix();
+  if (reduce) render();
+}
+new ResizeObserver(resize).observe(stage);
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+let t = 0;
+function render(){
+  const front = U.uFront.value;
+  plumes.forEach(p=>{ p.material.uniforms.uTime.value = t; p.material.uniforms.uFront.value = front; });
+  syncYaw();
+  updateTints(front, reduce);
+  placeTags(W, H);
+  renderer.render(scene, camera);
+}
+function frame(){
+  const dt = Math.min(clock.getDelta(), .05);
+  t += dt;
+  U.uFront.value = Math.min(U.uFront.value + dt*(2 + speed*.9), 90);
+  const v = 1.2 + speed*.55;
+  for (let i=0;i<N;i++){
+    const s = sState[i];
+    s.x += dirVec.x*s.s*dt*v; s.z += dirVec.y*s.s*dt*v;
+    if (Math.abs(s.x-CX) > HX || Math.abs(s.z-CZ) > HZ){
+      s.x = CX - dirVec.x*(HX-1) + (rnd()-.5)*2*HX*Math.abs(dirVec.y) + (rnd()-.5)*4;
+      s.z = CZ - dirVec.y*(HZ-1) + (rnd()-.5)*2*HZ*Math.abs(dirVec.x) + (rnd()-.5)*4;
+    }
+    const o = i*6, L = s.l*(.6+speed*.12);
+    sPos[o]=s.x; sPos[o+1]=s.y; sPos[o+2]=s.z;
+    sPos[o+3]=s.x - dirVec.x*L; sPos[o+4]=s.y; sPos[o+5]=s.z - dirVec.y*L;
+  }
+  sGeo.attributes.position.needsUpdate = true;
+  const pulse = (Math.sin(t*1.6)+1)/2;
+  ring2.scale.setScalar(1 + ((t*.35)%1)*.5); ring2.material.opacity = .55*(1-((t*.35)%1));
+  srcLine.material.opacity = .55 + .45*pulse;
+  srcDisc.scale.setScalar(1 + ((t*.5)%1)*1.6); srcDisc.material.opacity = 1-((t*.5)%1);
+  controls.update();
+  render();
+  requestAnimationFrame(frame);
+}
+
+setMode('calm');
+setWind(windDeg);
+resize();
+if (reduce){
+  for (let i=0;i<N;i++){ const s=sState[i], o=i*6; sPos.set([s.x,s.y,s.z,s.x-dirVec.x*s.l,s.y,s.z-dirVec.y*s.l], o); }
+  sGeo.attributes.position.needsUpdate = true;
+  render();
+} else requestAnimationFrame(frame);
+</script>
+
+</body></html>

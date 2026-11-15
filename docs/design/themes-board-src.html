@@ -1,0 +1,193 @@
+<title>askgaia Themes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Space+Mono:wght@400;700&family=Sora:wght@300;500;700&family=Caveat+Brush&family=Caveat:wght@500;700&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#050807;--line:rgba(255,255,255,.08);--mist:#9aa8a1}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f2f5f3;font:400 15px/1.55 Montserrat,system-ui,sans-serif;padding-inline:clamp(16px,4vw,48px);padding-block:32px 64px}
+.wrap{max-width:1280px;margin:0 auto;display:grid;gap:40px}
+.top h1{font-weight:500;font-size:clamp(28px,4vw,44px);letter-spacing:-.02em;margin:0 0 8px}
+.top p{color:var(--mist);max-width:70ch;margin:0}
+.theme{display:grid;gap:14px}
+.label{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.label b{font:500 12px "JetBrains Mono",monospace;letter-spacing:.18em;color:#7fe3a8}
+.label h2{margin:0;font-weight:500;font-size:22px}
+.label span{color:var(--mist);font-size:14px}
+.stage{position:relative;height:min(78vh,640px);min-height:460px;border-radius:18px;overflow:hidden;border:1px solid var(--line);isolation:isolate}
+.notes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;color:var(--mist);font-size:13.5px}
+.notes div b{display:block;color:#f2f5f3;font-weight:500;margin-bottom:2px}
+@media(max-width:800px){.notes{grid-template-columns:1fr}}
+
+/* shared: CSS globe from an equirectangular texture */
+.globe{position:absolute;border-radius:50%;background-size:200% 100%;background-repeat:repeat-x;animation:spin 70s linear infinite}
+@keyframes spin{from{background-position:0 0}to{background-position:-200% 0}}
+.stars{position:absolute;inset:0;background-image:radial-gradient(1px 1px at 10% 20%,#fff9,transparent),radial-gradient(1px 1px at 30% 70%,#fff7,transparent),radial-gradient(1px 1px at 55% 15%,#fff8,transparent),radial-gradient(1px 1px at 75% 55%,#fff6,transparent),radial-gradient(1px 1px at 90% 30%,#fff9,transparent),radial-gradient(1px 1px at 20% 90%,#fff6,transparent),radial-gradient(1.5px 1.5px at 65% 85%,#fff9,transparent),radial-gradient(1px 1px at 42% 42%,#fff5,transparent);background-size:420px 420px}
+@media (prefers-reduced-motion:reduce){.globe,.anim{animation:none!important}}
+
+/* ===== A · MISSION CONTROL ===== */
+.A{background:#04070b;font-family:"Space Mono",monospace}
+.A .globe{width:78%;aspect-ratio:1;left:11%;top:46%;background-image:var(--day);box-shadow:inset -60px -40px 120px rgba(0,0,0,.85),inset 20px 10px 60px rgba(120,200,255,.15),0 0 80px rgba(80,170,255,.35)}
+.A .hud{position:absolute;inset:18px;border:1px solid rgba(140,220,255,.18);border-radius:12px;pointer-events:none}
+.A .hud i{position:absolute;width:22px;height:22px;border:2px solid #8fdcff}
+.A .hud i:nth-child(1){top:-1px;left:-1px;border-right:0;border-bottom:0}.A .hud i:nth-child(2){top:-1px;right:-1px;border-left:0;border-bottom:0}
+.A .hud i:nth-child(3){bottom:-1px;left:-1px;border-right:0;border-top:0}.A .hud i:nth-child(4){bottom:-1px;right:-1px;border-left:0;border-top:0}
+.A .mission{position:absolute;top:40px;left:44px;font-size:11px;letter-spacing:.2em;color:#8fdcff}
+.A .mission strong{display:block;font:700 34px/1.1 "Space Mono",monospace;letter-spacing:.02em;color:#fff;margin-top:8px}
+.A .mission em{font-style:normal;color:#ffb35c}
+.A .tele{position:absolute;top:40px;right:44px;text-align:right;font-size:11px;line-height:1.9;color:#8fdcff}
+.A .tele b{color:#fff;font-weight:400}
+.A .crew{position:absolute;left:44px;bottom:44px;display:grid;gap:8px;font-size:11px;color:#cfeaff}
+.A .crew div{display:flex;align-items:center;gap:10px;background:rgba(10,24,36,.7);border:1px solid rgba(140,220,255,.25);padding:6px 10px;border-radius:999px}
+.A .crew i{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#9fb7c9 55%,#2a3f50);box-shadow:0 0 0 2px #0b1520,0 0 0 3px #8fdcff}
+.A .crew s{text-decoration:none;color:#7fe3a8}
+.A .comms{position:absolute;right:44px;bottom:44px;max-width:300px;background:rgba(10,24,36,.82);border:1px solid rgba(255,179,92,.4);border-radius:10px;padding:12px 14px;font-size:11.5px;line-height:1.6;color:#ffe2bf}
+.A .comms b{color:#ffb35c;letter-spacing:.14em;font-size:10px;display:block;margin-bottom:4px}
+.A .astro{position:absolute;width:46px;left:62%;top:30%;animation:float 9s ease-in-out infinite}
+@keyframes float{50%{transform:translate(-14px,10px) rotate(-12deg)}}
+.A .orbit{position:absolute;left:4%;right:4%;top:40%;height:52%;border:1px dashed rgba(143,220,255,.35);border-radius:50%;transform:rotate(-8deg)}
+
+/* ===== B · NIGHT LIGHTS ===== */
+.B{background:#020304}
+.B .globe{animation:none;background-position:0 0;width:92%;aspect-ratio:1;left:4%;top:38%;background-image:var(--night);filter:saturate(1.2);box-shadow:inset -40px -30px 120px rgba(0,0,0,.9),0 0 0 1px rgba(255,200,120,.08),0 -6px 60px rgba(255,170,80,.25)}
+.B .glow{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,210,120,1),rgba(255,130,50,.6) 30%,transparent 70%);mix-blend-mode:screen;animation:pulse 3.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55;transform:scale(.85)}}
+.B .copy{position:absolute;top:56px;left:0;right:0;text-align:center}
+.B .copy p{margin:0;font:300 11px Montserrat;letter-spacing:.32em;color:#f3c98a}
+.B .copy h3{margin:14px 0 8px;font:400 clamp(30px,4.6vw,58px)/1.05 "Instrument Serif",serif;letter-spacing:-.01em}
+.B .copy h3 i{color:#ffb35c}
+.B .copy span{color:#b9ad9c;font-size:14px}
+.B .legend{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-size:11px;color:#b9ad9c}
+.B .legend i{width:160px;height:4px;border-radius:4px;background:linear-gradient(90deg,#3b2a14,#ffb35c,#fff3d6)}
+
+/* ===== C · SATELLITE FEED ===== */
+.C{background:#060b0a;font-family:Sora,sans-serif}
+.C .globe{width:58%;aspect-ratio:1;right:-4%;top:12%;background-image:var(--day);box-shadow:inset -50px -30px 100px rgba(0,0,0,.85),0 0 0 1px rgba(127,227,168,.25),0 0 90px rgba(46,168,110,.3)}
+.C .scan{position:absolute;right:-4%;top:12%;width:58%;aspect-ratio:1;border-radius:50%;overflow:hidden;pointer-events:none}
+.C .scan::after{content:"";position:absolute;left:0;right:0;height:22%;background:linear-gradient(180deg,transparent,rgba(127,227,168,.35),transparent);animation:scan 4s linear infinite}
+@keyframes scan{from{top:-25%}to{top:100%}}
+.C .box{position:absolute;border:1.5px solid #7fe3a8;border-radius:3px}
+.C .box::after{content:attr(data-l);position:absolute;top:-20px;left:-1px;font:500 10px "JetBrains Mono";background:#7fe3a8;color:#06110d;padding:2px 6px;white-space:nowrap}
+.C .left{position:absolute;left:48px;top:50%;transform:translateY(-50%);max-width:44%}
+.C .left p{margin:0;font:500 11px "JetBrains Mono";letter-spacing:.2em;color:#7fe3a8}
+.C .left h3{margin:14px 0 14px;font:700 clamp(32px,4.4vw,56px)/1 Sora,sans-serif;letter-spacing:-.04em}
+.C .left span{display:block;color:#a7b5ae;margin-bottom:24px}
+.C .pill{display:flex;align-items:center;gap:12px;height:54px;border-radius:999px;border:1px solid rgba(127,227,168,.5);padding:0 8px 0 20px;background:rgba(6,16,13,.8);box-shadow:0 0 30px rgba(46,168,110,.25);color:#e8f0eb}
+.C .pill em{margin-left:auto;width:38px;height:38px;border-radius:50%;border:1.5px solid #7fe3a8;display:grid;place-items:center;font-style:normal;color:#7fe3a8}
+.C .feed{position:absolute;left:48px;bottom:30px;display:flex;gap:18px;font:400 10.5px "JetBrains Mono";color:#7f8d86}
+.C .feed b{color:#7fe3a8;font-weight:400}
+
+/* ===== D · LIVING EARTH (GAIA) ===== */
+.D{background:radial-gradient(120% 80% at 50% 110%,#0f3a2c,#06120d 55%,#030605)}
+.D .globe{width:56%;aspect-ratio:1;left:22%;top:40%;background-image:var(--day);filter:hue-rotate(-10deg) saturate(1.1);box-shadow:inset -40px -30px 100px rgba(0,20,10,.85),0 0 120px rgba(127,227,168,.35)}
+.D .aura{position:absolute;width:70%;aspect-ratio:1;left:15%;top:33%;border-radius:50%;background:conic-gradient(from 0deg,rgba(127,227,168,0),rgba(127,227,168,.35),rgba(80,200,255,.25),rgba(255,180,120,.25),rgba(127,227,168,0));filter:blur(28px);animation:breathe 7s ease-in-out infinite,rot 30s linear infinite}
+@keyframes breathe{50%{opacity:.45;transform:scale(1.06)}}
+@keyframes rot{to{rotate:360deg}}
+.D .copy{position:absolute;left:0;right:0;top:40px;text-align:center}
+.D .copy p{margin:0;font:400 12px Montserrat;letter-spacing:.4em;color:#9fe9c0}
+.D .copy h3{margin:10px 0 0;font:300 clamp(34px,5vw,64px)/1 Montserrat;letter-spacing:-.03em}
+.D .copy h3 i{font-family:"Instrument Serif",serif;font-weight:400}
+.D .breath{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);display:flex;gap:28px;font-size:12px;color:#b5cfc2;text-align:center}
+.D .breath b{display:block;font:500 22px Montserrat;color:#f2f5f3}
+/* ===== E · PAINTED EARTH ===== */
+.E{background:linear-gradient(180deg,#bfe0f5 0%,#d8eefa 45%,#eef7fb 100%);color:#1d3b2c}
+.E .wash{position:absolute;border-radius:50%;filter:blur(30px);opacity:.75}
+.E .globe{width:42%;aspect-ratio:1;left:29%;top:34%;background-image:var(--day);animation-duration:120s;filter:saturate(1.35) contrast(1.05);-webkit-mask:radial-gradient(circle,#000 62%,transparent 71%);mask:radial-gradient(circle,#000 62%,transparent 71%)}
+.E .sun{position:absolute;width:40%;aspect-ratio:1;left:30%;top:16%;border-radius:50%;background:radial-gradient(circle,rgba(255,240,150,.95),rgba(255,230,120,.4) 40%,transparent 70%);filter:blur(6px)}
+.E .brush{position:absolute;top:30px;left:0;right:0;text-align:center;font:400 clamp(64px,10vw,124px)/.9 "Caveat Brush",cursive;color:#2f9a46;transform:rotate(-4deg);text-shadow:2px 2px 0 rgba(255,255,255,.5)}
+.E .tag{position:absolute;top:148px;left:0;right:0;text-align:center;font:700 24px Caveat,cursive;color:#1d6b3a}
+.E .leaves{position:absolute;bottom:-20px;left:0;right:0;height:40%;background:radial-gradient(60% 70% at 8% 100%,#1c5a2e 0 40%,transparent 41%),radial-gradient(40% 60% at 28% 112%,#2f8a43 0 45%,transparent 46%),radial-gradient(45% 60% at 76% 106%,#246b36 0 44%,transparent 45%),radial-gradient(35% 55% at 96% 100%,#3d9a4f 0 42%,transparent 43%);filter:blur(1.5px)}
+.E .bfly{position:absolute;width:30px;animation:flap 4s ease-in-out infinite}
+@keyframes flap{50%{transform:translate(12px,-10px) rotate(8deg)}}
+.E .cta{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);background:#fffdf6;color:#1d3b2c;border-radius:999px;padding:14px 26px;font:600 15px Montserrat;box-shadow:0 8px 24px rgba(29,59,44,.25);white-space:nowrap}
+.logos{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.logo{border:1px solid var(--line);border-radius:16px;padding:22px 18px;display:grid;justify-items:center;gap:12px;background:#0a0f0d}
+.logo.light{background:#eef7fb}
+.logo svg{width:170px;height:110px}
+.logo p{margin:0;font-size:12.5px;color:var(--mist);text-align:center}
+.logo.light p{color:#3f5a4c}
+@media(max-width:900px){.logos{grid-template-columns:1fr 1fr}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Five themes and four logos for askgaia</h1>
+    <p>Each is a different personality for the same product. The real version uses Google's photoreal 3D Earth; these previews use a lighter animated globe. Pick one, or mix parts.</p>
+  </header>
+
+  <section class="theme">
+    <div class="label"><b>THEME A</b><h2>Mission Control</h2><span>You are the astronaut. A crew investigates Earth with you.</span></div>
+    <div class="stage A">
+      <div class="stars"></div><div class="orbit"></div><div class="globe"></div>
+      <svg class="astro" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="18" r="12" fill="#e9eef2"/><circle cx="32" cy="18" r="8" fill="#1d3a55"/><path d="M33 13a6 4 0 0 1 4 4" stroke="#8fdcff" stroke-width="2" fill="none"/><rect x="20" y="28" width="24" height="22" rx="7" fill="#e9eef2"/><rect x="26" y="33" width="12" height="7" rx="2" fill="#ffb35c"/><rect x="12" y="30" width="9" height="16" rx="4" fill="#d6dde3"/><rect x="43" y="30" width="9" height="16" rx="4" fill="#d6dde3"/><rect x="22" y="48" width="8" height="12" rx="3" fill="#d6dde3"/><rect x="34" y="48" width="8" height="12" rx="3" fill="#d6dde3"/></svg>
+      <div class="hud"><i></i><i></i><i></i><i></i></div>
+      <div class="mission">MISSION 07 · DESCENT<strong>SALINAS<br>VALLEY</strong><em>● TARGET: ALISAL HIGH</em></div>
+      <div class="tele">ALT <b>408 KM</b><br>VEL <b>7.66 KM/S</b><br>WIND <b>NW 4.2 M/S</b><br>PUR <b>1.55 M LBS</b></div>
+      <div class="crew"><div><i></i>CDR · LOCATION AGENT <s>● ON</s></div><div><i></i>SCI · DATA AGENT <s>● ON</s></div><div><i></i>ENG · DRIFT AGENT <s>● ON</s></div><div><i></i>MED · VERIFIER <s>● ON</s></div></div>
+      <div class="comms"><b>CREW COMMS</b>"Fumigant plume detected north-west of target. Wind carrying toward campus. Recommend descent."</div>
+    </div>
+    <div class="notes"><div><b>Feel</b>Playful, cinematic, memorable. Judges remember it.</div><div><b>Twist</b>The four AI agents become a crew with callsigns and a voice (ElevenLabs).</div><div><b>Risk</b>Can feel like a game; the data cards must stay serious.</div></div>
+  </section>
+
+  <section class="theme">
+    <div class="label"><b>THEME B</b><h2>Night Lights</h2><span>Earth at night, but every light is pesticide.</span></div>
+    <div class="stage B">
+      <div class="stars"></div><div class="globe">
+      <div class="glow" style="left:31%;top:26%;width:6%;aspect-ratio:1"></div>
+      <div class="glow" style="left:32.5%;top:29%;width:5%;aspect-ratio:1;animation-delay:.8s"></div>
+      <div class="glow" style="left:29.5%;top:27.5%;width:3.5%;aspect-ratio:1;animation-delay:1.6s"></div>
+      <div class="glow" style="left:33.5%;top:31.5%;width:3%;aspect-ratio:1;animation-delay:2.2s"></div></div>
+      <div class="copy"><p>CALIFORNIA · 2014–2024</p><h3>Some lights on Earth<br>are not <i>cities.</i></h3><span>Every glow is pounds of pesticide. Fresno and Kern burn brightest.</span></div>
+      <div class="legend">fewer lbs <i></i> more lbs</div>
+    </div>
+    <div class="notes"><div><b>Feel</b>Beautiful, eerie, editorial. Like the Google Earth night side.</div><div><b>Twist</b>The data looks like city lights until the headline flips it.</div><div><b>Risk</b>Quieter; the wow is emotional rather than flashy.</div></div>
+  </section>
+
+  <section class="theme">
+    <div class="label"><b>THEME C</b><h2>Satellite Feed</h2><span>A live intelligence console, Planet.com style.</span></div>
+    <div class="stage C">
+      <div class="stars"></div><div class="globe"></div><div class="scan"></div>
+      <div class="box" data-l="FRESNO · 123 M LBS" style="right:24%;top:40%;width:7%;height:9%"></div>
+      <div class="box" data-l="KERN · 106 M LBS" style="right:22%;top:52%;width:6%;height:8%"></div>
+      <div class="left"><p>● LIVE · CALIFORNIA</p><h3>Search. Explore. Act.</h3><span>Agents scan 11 years of state records, wind and water for any place you name.</span>
+        <div class="pill">Alisal High School, Salinas<em>→</em></div></div>
+      <div class="feed"><span><b>PUR</b> synced</span><span><b>WIND</b> 21:04</span><span><b>MCP</b> 14 tools</span><span><b>NEON</b> 11.1 M rows</span></div>
+    </div>
+    <div class="notes"><div><b>Feel</b>Professional, techy, credible. Closest to Planet.</div><div><b>Twist</b>Detection boxes lock onto hotspots like a satellite targeting system.</div><div><b>Risk</b>Least surprising; the craft has to carry it.</div></div>
+  </section>
+
+  <section class="theme">
+    <div class="label"><b>THEME D</b><h2>Living Earth</h2><span>Gaia as a living being that breathes and remembers.</span></div>
+    <div class="stage D">
+      <div class="stars"></div><div class="aura anim"></div><div class="globe"></div>
+      <div class="copy"><p>A S K G A I A</p><h3>The Earth <i>remembers</i><br>what we sprayed.</h3></div>
+      <div class="breath"><div><b>48 M</b>records</div><div><b>58</b>counties</div><div><b>11</b>years</div></div>
+    </div>
+    <div class="notes"><div><b>Feel</b>Warm, poetic, Greek. Tells the Gaia story.</div><div><b>Twist</b>A slow breathing aura; hotspots pulse like a heartbeat.</div><div><b>Risk</b>Softer; needs the 3D drift scenes to add punch.</div></div>
+  </section>
+  <section class="theme">
+    <div class="label"><b>THEME E</b><h2>Painted Earth</h2><span>Hand-painted, hopeful, human. Like an Earth Day poster.</span></div>
+    <div class="stage E">
+      <div class="wash" style="left:-6%;top:8%;width:38%;height:40%;background:#9fd3f2"></div>
+      <div class="wash" style="right:-8%;top:20%;width:40%;height:44%;background:#a9e0c4"></div>
+      <div class="sun"></div><div class="globe"></div><div class="leaves"></div>
+      <svg class="bfly" style="left:18%;top:36%" viewBox="0 0 40 30"><path d="M20 15C12 2 2 4 4 12s10 6 16 3zM20 15c8-13 18-11 16-3s-10 6-16 3zM20 15c-6 8-12 12-10 14s8-6 10-14zM20 15c6 8 12 12 10 14s-8-6-10-14z" fill="#e8892b"/><path d="M20 8v16" stroke="#3a2412" stroke-width="2"/></svg>
+      <svg class="bfly" style="right:20%;top:46%;animation-delay:1.3s" viewBox="0 0 40 30"><path d="M20 15C12 2 2 4 4 12s10 6 16 3zM20 15c8-13 18-11 16-3s-10 6-16 3z" fill="#8b4fd1"/><path d="M20 8v16" stroke="#2a1840" stroke-width="2"/></svg>
+      <div class="brush">askgaia</div>
+      <div class="tag">ask the Earth what happened here</div>
+      <div class="cta">Investigate a place &rarr;</div>
+    </div>
+    <div class="notes"><div><b>Feel</b>Warm, artistic, unlike any other tech demo in the room.</div><div><b>Twist</b>The 3D map stays real; the brand and panels are painted and hand-lettered.</div><div><b>Risk</b>Bright and soft; the drift scenes need contrast against it.</div></div>
+  </section>
+
+  <section class="theme">
+    <div class="label"><b>LOGOS</b><h2>Four marks</h2><span>Inspired by the earth.com orbit "e". Each works small and large.</span></div>
+    <div class="logos">
+      <div class="logo"><svg viewBox="0 0 170 110"><circle cx="40" cy="55" r="26" fill="#2ea86e"/><text x="40" y="66" text-anchor="middle" font-family="Montserrat" font-weight="700" font-size="32" fill="#06110d">a</text><ellipse cx="40" cy="55" rx="38" ry="12" fill="none" stroke="#7fe3a8" stroke-width="3" transform="rotate(-22 40 55)"/><text x="84" y="63" font-family="Montserrat" font-weight="600" font-size="22" fill="#f2f5f3">askgaia</text></svg><p>Orbit "a". The earth.com idea, in our green.</p></div>
+      <div class="logo"><svg viewBox="0 0 170 110"><defs><linearGradient id="lg2" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#4fc3f7"/><stop offset="1" stop-color="#2ea86e"/></linearGradient></defs><circle cx="40" cy="55" r="27" fill="url(#lg2)"/><path d="M27 48c6-6 14-4 16 2s-4 8-2 13 9 4 12 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M14 74c20-10 42-36 54-40" stroke="#ffb35c" stroke-width="3" fill="none" stroke-linecap="round"/><text x="84" y="63" font-family="Montserrat" font-weight="600" font-size="22" fill="#f2f5f3">askgaia</text></svg><p>Planet with a drift line crossing it.</p></div>
+      <div class="logo light"><svg viewBox="0 0 170 110"><circle cx="40" cy="55" r="26" fill="none" stroke="#2f9a46" stroke-width="5" stroke-linecap="round" stroke-dasharray="140 30"/><path d="M40 70c-2-12 4-22 16-26-1 13-7 22-16 26z" fill="#2f9a46"/><path d="M40 70c0-9-5-15-13-17 1 9 6 15 13 17z" fill="#74c86b"/><text x="80" y="66" font-family="Caveat Brush" font-size="34" fill="#2f9a46">askgaia</text></svg><p>Painted ring and a sprout, for Theme E.</p></div>
+      <div class="logo"><svg viewBox="0 0 170 110"><g fill="none" stroke="#7fe3a8" stroke-width="2.2"><circle cx="40" cy="55" r="26"/><path d="M14 55h52M40 29c10 9 10 43 0 52M40 29c-10 9-10 43 0 52"/></g><circle cx="58" cy="37" r="5" fill="#ffb35c"/><text x="84" y="57" font-family="Montserrat" font-weight="300" font-size="22" fill="#f2f5f3">ask<tspan font-weight="700">gaia</tspan></text><text x="85" y="74" font-family="JetBrains Mono" font-size="8.5" letter-spacing="2" fill="#7fe3a8">EARTH, UNDERSTOOD</text></svg><p>Line globe with a "you are here" sun.</p></div>
+    </div>
+  </section>
+
+</div>
