@@ -19,7 +19,7 @@
 #tinyearth .te-hud{position:absolute;inset:0;pointer-events:none;z-index:3}
 #tinyearth .te-top{position:absolute;left:clamp(16px,3vw,40px);right:clamp(16px,3vw,40px);top:clamp(14px,2.6vh,28px);display:flex;align-items:center;gap:24px;padding-bottom:12px;border-bottom:1px solid var(--line)}
 #tinyearth .te-brand{font-weight:500;font-size:17px;letter-spacing:.01em;color:var(--ink);text-transform:none;font-family:Montserrat,sans-serif}
-#tinyearth .te-brand b{color:var(--mint);font-weight:500}
+#tinyearth .te-brand{display:inline-flex;align-items:center;gap:10px}#tinyearth .te-logo-dot{width:9px;height:9px;border-radius:50%;background:#7FE3A8;box-shadow:0 0 14px #7FE3A8,0 0 2px #fff;display:inline-block}
 #tinyearth .te-top .te-sep{flex:1}
 #tinyearth .te-read{display:flex;align-items:center;gap:8px;white-space:nowrap}
 #tinyearth .te-read em{font-style:normal;color:var(--ink)}
@@ -102,7 +102,7 @@
     <svg class="te-lines" aria-hidden="true"></svg>
     <div class="te-hud" aria-hidden="true">
       <div class="te-top te-mono">
-        <a class="te-brand" href="/home.html" style="text-decoration:none;pointer-events:auto">ask<b>gaia</b></a>
+        <a class="te-brand" href="/home.html" style="text-decoration:none;pointer-events:auto"><i class="te-logo-dot"></i>askgaia</a>
         <span class="te-read hide-sm">Earth, understood</span>
         <span class="te-sep"></span>
         <span class="te-read hide-sm">Salinas, CA&nbsp;&nbsp;<em>36.68° N · 121.61° W</em></span>
