@@ -181,6 +181,12 @@ body.diving #warp{opacity:1;transition:opacity .2s}
 #soundBtn{pointer-events:auto;all:unset;cursor:pointer;margin-left:18px;font:400 10.5px "JetBrains Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);border:1px solid rgba(233,243,236,.18);border-radius:999px;padding:6px 10px}
 #soundBtn:hover{color:var(--mint);border-color:var(--mint)}
 header{pointer-events:auto}
+.stack{list-style:none;margin:28px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(127,227,168,.12);border:1px solid rgba(127,227,168,.12);border-radius:14px;overflow:hidden}
+.stack li{background:#050907;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.stack b{font:500 11px/1.3 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--mint,#7FE3A8)}
+.stack span{font-size:13px;line-height:1.5;color:rgba(238,232,220,.66)}
+@media (max-width:900px){.stack{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.stack{grid-template-columns:1fr}}
 .realframe{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid rgba(255,138,76,.25);box-shadow:0 30px 80px rgba(0,0,0,.5)}
 .realframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .realcap{margin-top:16px;color:var(--dim);font-size:14px;max-width:70ch}.realcap a{color:var(--ember)}
@@ -535,6 +541,16 @@ document.querySelectorAll('.places a').forEach(function(a){ a.addEventListener('
     </div>
     <div class="realframe"><iframe id="realframe" src="/biola.html" title="Drift diorama of a real place" loading="lazy"></iframe></div>
     <p class="realcap">Drag the compass to change the wind. Every house, road and field is where it is in real life; the spray sections and pounds are from CDPR records, 2020–2024. <a id="realopen" href="/biola.html" target="_blank" rel="noopener">Open full screen →</a></p>
+    <ul class="stack" aria-label="What this model is built with">
+      <li><b>three.js · WebGL</b><span>Every building extruded, lit and shaded live in your browser</span></li>
+      <li><b>OpenStreetMap vector tiles</b><span>Footprints, streets, canals, schools, clinics and gas stations</span></li>
+      <li><b>Neon Postgres + PostGIS</b><span>Spatial query of 11.1 M CDPR records inside a 1.25 km ring</span></li>
+      <li><b>CDPR Pesticide Use Reports</b><span>Square-mile sections, pounds and chemicals, 2014–2024</span></li>
+      <li><b>Open-Meteo</b><span>Live 10 m wind speed and direction for this exact spot</span></li>
+      <li><b>Gaussian plume model</b><span>Pasquill–Gifford stability A–F from wind, daylight and cloud</span></li>
+      <li><b>CDPR SURF</b><span>Nearest creek samples and how often pesticides were detected</span></li>
+      <li><b>FastAPI + MCP</b><span>The same place data the investigator agent calls as a tool</span></li>
+    </ul>
   </section>
 
   <section class="sec" id="places">
