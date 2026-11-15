@@ -1,19 +1,87 @@
-.earth{position:fixed;inset:0;background:#02040a;color:#eef3f1;font:14px/1.5 "DM Sans",system-ui,sans-serif;overflow:hidden}
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap');
+.earth{--ink:#050807;--panel:rgba(7,18,14,.92);--green:#0E3B2E;--leaf:#2EA86E;--mint:#7FE3A8;--white:#F3F6F4;--mist:#A7B5AE;--line:rgba(127,227,168,.14);
+  position:fixed;inset:0;background:var(--ink);color:var(--white);font:400 14px/1.55 Montserrat,system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
 .earth-canvas{position:absolute;inset:0}
 .earth-canvas canvas{display:block;cursor:grab}
 .earth-canvas canvas:active{cursor:grabbing}
-.earth-head{position:absolute;top:22px;left:28px;display:flex;align-items:baseline;gap:14px;pointer-events:none}
-.earth-brand{font:600 26px/1 "Space Grotesk",system-ui,sans-serif;letter-spacing:-.03em}
-.earth-tag{font-size:13px;color:#a8bdb3;letter-spacing:.06em}
-.earth-stops{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:calc(100% - 32px)}
-.earth-stops button{font:500 13px/1 "DM Sans",system-ui,sans-serif;color:#dfe9e4;background:rgba(10,18,20,.62);backdrop-filter:blur(10px);border:1px solid rgba(180,230,210,.22);border-radius:99px;padding:10px 15px;cursor:pointer}
-.earth-stops button[aria-pressed="true"]{background:#b9f972;color:#0b1606;border-color:#b9f972}
-.earth-stops button:disabled{opacity:.55;cursor:default}
-.earth-stops button:focus-visible{outline:2px solid #65dbeb;outline-offset:2px}
-.earth-note{position:absolute;left:28px;top:64px;max-width:380px;margin:0;padding:10px 14px;border-radius:10px;background:rgba(10,18,20,.6);backdrop-filter:blur(10px);border:1px solid rgba(180,230,210,.18);color:#d5e4dc;font-size:13px}
-.earth-credits{position:absolute;left:12px;right:12px;bottom:10px;display:flex;align-items:center;gap:10px;font-size:10.5px;color:rgba(255,255,255,.7);pointer-events:none}
+
+.earth-head{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:22px 36px;background:linear-gradient(180deg,rgba(5,8,7,.7),transparent);pointer-events:none;z-index:3}
+.earth-brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:19px;letter-spacing:-.01em;color:var(--white);text-decoration:none;pointer-events:auto}
+.earth-dot{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,var(--mint),var(--leaf) 60%,var(--green));box-shadow:0 0 12px rgba(127,227,168,.6)}
+.earth-nav{display:flex;align-items:center;gap:30px;font-size:13px;font-weight:500;pointer-events:auto}
+.earth-nav a{color:var(--white);text-decoration:none;opacity:.8}
+.earth-nav a:hover{opacity:1;color:var(--mint)}
+.earth-nav span{color:var(--mist);font-weight:300}
+
+/* Earth Stats-style headline number */
+.earth-stat{position:absolute;left:50%;top:13vh;transform:translateX(-50%);z-index:3;text-align:center;width:min(900px,calc(100% - 32px));pointer-events:none}
+.earth-num{margin:4px 0 8px;font-weight:500;font-size:clamp(40px,6.4vw,84px);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;text-shadow:0 2px 30px rgba(0,0,0,.6)}
+.earth-num span{font-weight:300;font-size:.34em;color:var(--mist);letter-spacing:0}
+.earth-sub{margin:0;color:#dfe7e2;font-size:14px;font-weight:400;text-shadow:0 1px 12px rgba(0,0,0,.9)}
+.earth-stat::before{content:"";position:absolute;inset:-40px -80px;z-index:-1;background:radial-gradient(closest-side,rgba(5,8,7,.62),transparent)}
+.earth-stat .earth-kicker{margin-bottom:6px}
+
+/* Planet-style search pill */
+.earth-search{position:absolute;left:50%;transform:translateX(-50%);bottom:132px;z-index:3;display:flex;align-items:center;gap:14px;width:min(640px,calc(100% - 32px));height:68px;padding:0 10px 0 22px;border-radius:999px;
+  background:rgba(6,16,13,.85);backdrop-filter:blur(16px);border:1px solid rgba(127,227,168,.45);box-shadow:0 0 0 6px rgba(46,168,110,.08),0 0 40px rgba(46,168,110,.25),inset 0 1px 0 rgba(255,255,255,.06);transition:bottom .6s ease,top .6s ease}
+.earth-search svg{width:22px;height:22px;color:var(--mint);flex:none}
+.earth-search input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--white);font:300 clamp(17px,2.2vw,24px) Montserrat,sans-serif;letter-spacing:.01em}
+.earth-search input::placeholder{color:rgba(243,246,244,.82)}
+.earth-search button{flex:none;width:48px;height:48px;border-radius:50%;border:1.5px solid var(--mint);background:transparent;color:var(--mint);font-size:20px;cursor:pointer}
+.earth-search button:hover{background:var(--mint);color:var(--ink)}
+.earth-search:focus-within{border-color:var(--mint);box-shadow:0 0 0 6px rgba(127,227,168,.12),0 0 50px rgba(46,168,110,.35)}
+.earth:not(.is-home) .earth-search{bottom:auto;top:74px;height:52px;width:min(460px,calc(100% - 32px))}
+.earth:not(.is-home) .earth-search input{font-size:16px}
+.earth:not(.is-home) .earth-search button{width:36px;height:36px;font-size:16px}
+.earth-searchmsg{position:absolute;left:50%;transform:translateX(-50%);bottom:100px;z-index:3;margin:0;color:var(--mist);font-size:13px}
+.earth:not(.is-home) .earth-searchmsg{bottom:auto;top:134px}
+
+.earth-kicker{margin:0 0 10px;font:400 10.5px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--mint)}
+
+.earth-stops{position:absolute;left:50%;transform:translateX(-50%);bottom:56px;z-index:3;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:calc(100% - 32px)}
+.earth-stops button{font:500 12.5px/1 Montserrat,sans-serif;color:var(--white);background:rgba(6,16,13,.85);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:999px;padding:9px 14px;cursor:pointer}
+.earth-stops button:hover{color:var(--white);border-color:rgba(127,227,168,.35)}
+.earth-stops button[aria-pressed="true"]{color:var(--ink);background:var(--mint);border-color:var(--mint)}
+.earth-stops button:disabled{opacity:.5;cursor:default}
+.earth-stops button:focus-visible,.earth-search button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+
+.earth-card{position:absolute;right:28px;top:84px;z-index:3;width:350px;max-height:calc(100% - 200px);overflow:auto;padding:22px;background:var(--panel);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:14px}
+.earth-card h1{margin:0 0 8px;font-weight:500;font-size:22px;line-height:1.2;letter-spacing:-.01em}
+.earth-note{margin:0 0 16px;color:var(--mist);font-size:13.5px}
+.earth-stats{display:grid;margin:0 0 16px;border-top:1px solid var(--line)}
+.earth-stats div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.earth-stats dt{color:var(--mist);font-size:12.5px}
+.earth-stats dd{margin:0;font-weight:600;font-size:13.5px;text-align:right;font-variant-numeric:tabular-nums;text-transform:capitalize}
+
+.earth-wind{margin:4px 0 14px;padding:16px;border-radius:10px;background:rgba(14,59,46,.35);border:1px solid var(--line)}
+.earth-wind-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.earth-wind-head .earth-kicker{margin:0}
+.earth-wind-head button{font:500 12px Montserrat,sans-serif;color:var(--ink);background:var(--mint);border:0;border-radius:999px;padding:7px 12px;cursor:pointer}
+.earth-wind label{display:flex;justify-content:space-between;margin-top:12px;font-size:12.5px;color:var(--mist)}
+.earth-wind label b{color:var(--white);font-weight:600;font-variant-numeric:tabular-nums}
+.earth-wind input[type=range]{width:100%;margin-top:6px;accent-color:var(--leaf)}
+.earth-cls{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:14px}
+.earth-cls button{font:600 12px Montserrat,sans-serif;color:var(--mist);background:transparent;border:1px solid var(--line);border-radius:6px;padding:6px 0;cursor:pointer}
+.earth-cls button[aria-pressed="true"]{color:var(--ink);background:var(--white);border-color:var(--white)}
+.earth-read{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0 6px;padding-top:12px;border-top:1px solid var(--line);font-size:13px}
+.earth-read b{font-weight:600;white-space:nowrap}
+.earth-read b[data-level="High"]{color:#E53E3E}.earth-read b[data-level="Moderate"]{color:#F59646}
+.earth-read b[data-level="Low"]{color:var(--mint)}.earth-read b[data-level="Not downwind"]{color:var(--mist)}
+.earth-fine{margin:6px 0 0;font-size:11px;line-height:1.5;color:#7f8d86}
+
+.earth-tag{position:absolute;z-index:2;transform:translate(-50%,-140%);padding:5px 10px;border-radius:999px;background:var(--white);color:var(--ink);font:600 11.5px Montserrat,sans-serif;pointer-events:none;white-space:nowrap;display:none}
+.earth-credits{position:absolute;left:12px;right:12px;bottom:10px;z-index:3;display:flex;align-items:center;gap:10px;font-size:10.5px;color:rgba(255,255,255,.7);pointer-events:none}
 .earth-missing{position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:24px;gap:6px}
-.earth-missing h2{font:600 22px/1.2 "Space Grotesk",system-ui,sans-serif;margin:0}
-.earth-missing p{color:#a8bdb3;margin:0}
-.earth-missing code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px}
-@media (max-width:640px){.earth-head{left:16px}.earth-note{left:16px;right:16px;max-width:none}.earth-stops{bottom:48px}}
+.earth-missing h2{font-weight:600;font-size:22px;margin:0}
+.earth-missing p{color:var(--mist);margin:0}
+.earth-missing code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px}
+@media (max-width:820px){
+  .earth-head{padding:16px}.earth-nav a{display:none}
+  .earth-card{left:16px;right:16px;top:auto;bottom:110px;width:auto;max-height:42%}
+  .earth:not(.is-home) .earth-search{top:60px}
+  .earth-stops{bottom:48px;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start}
+}
+@media (prefers-reduced-motion:reduce){.earth-search{transition:none}}
+
+.earth-hint{position:absolute;right:28px;bottom:16px;z-index:3;margin:0;font-size:11.5px;color:#dfe7e2;background:rgba(7,18,14,.85);padding:7px 11px;border-radius:999px;pointer-events:none}
+@media (max-width:820px){.earth-hint{display:none}}

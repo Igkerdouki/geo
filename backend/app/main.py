@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 
-from app.api import investigations, sprays, drift, research, toxicity, locations, realtime, weather, history, farmers
+from app.api import investigations, sprays, drift, research, toxicity, locations, realtime, weather, history, farmers, spatial
 
 # Background task for spray simulation
 spray_simulator_task = None
@@ -82,6 +82,7 @@ app.include_router(history.router, prefix="/api", tags=["history"])
 app.include_router(farmers.router, prefix="/api", tags=["farmers"])
 
 app.include_router(investigations.router, prefix="/api", tags=["investigations"])
+app.include_router(spatial.router, prefix="/api", tags=["spatial"])
 
 @app.get("/health")
 def health():
