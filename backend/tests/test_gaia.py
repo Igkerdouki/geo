@@ -54,3 +54,21 @@ def test_report_snapshot_pdf_inquiry_and_geo_gate(monkeypatch,tmp_path):
     assert 'Biola School' in c.get(base+'/inquiry').json()['body']
     assert c.get('/api/gaia/reports/invalid/pdf').status_code==404
     assert c.post('/api/gaia/reports',json={**context().model_dump(),'location':{'name':'Vegas','lat':36.17,'lon':-115.14}}).status_code==422
+
+
+def test_brightdata_search_then_document_citation():
+    seen=[]
+    async def call(name,args):
+        seen.append((name,args))
+        if name=='discover_public_evidence':return [{'url':'https://www.cdpr.ca.gov/example','title':'Guidance'}]
+        return {'url':args['url'],'title':'DPR guidance','text':'Public guidance text','provider':'Bright Data Web Unlocker','sha256':'fingerprint'}
+    async def parse(**kw):
+        records=[json.loads(x['output']) for x in kw['input'] if isinstance(x,dict) and x.get('type')=='function_call_output']
+        if not records:return NS(output=[NS(type='function_call',name='discover_public_evidence',arguments='{"query":"pesticide school guidance"}',call_id='search')])
+        if len(records)==1:return NS(output=[NS(type='function_call',name='read_public_source',arguments='{"url":"https://www.cdpr.ca.gov/example"}',call_id='read')])
+        return NS(output=[],output_parsed=gaia.Answer(introduction='Guidance',claims=[gaia.Claim(text='Document finding',label='observed',evidence_ids=[records[1]['id']]),gaia.Claim(text='Snippet only',label='observed',evidence_ids=[records[0]['id']])]))
+    r=asyncio.run(gaia.conversation(gaia.ChatRequest(**context().model_dump(),message='Find school guidance'),NS(schemas=lambda names:[],call=call),NS(responses=NS(parse=parse))))
+    assert seen[0][1]['query'].startswith('Biola School California')
+    assert len(r['answer']['claims'])==1
+    assert r['evidence'][1]['source']['url']=='https://www.cdpr.ca.gov/example'
+    assert r['evidence'][1]['result']['provider']=='Bright Data Web Unlocker'
