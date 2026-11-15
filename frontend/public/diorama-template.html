@@ -151,6 +151,7 @@ h1 em{font-style:italic;color:var(--bone2)}
 </script>
 <script type="module">
 import * as THREE from 'three';
+import {transportLayer, mountTransportDemo} from '/transport-demo.mjs';
 import {currentWeather} from '/weather-client.mjs';
 import {sampleGrid, mapSimulation, mountInvestigation} from '/map-workflow.mjs';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -552,7 +553,7 @@ const N = reduce ? 200 : 520, CX = (SRC.x+SCHOOL.x)/2, CZ = (SRC.y+SCHOOL.y)/2, 
 const sPos = new Float32Array(N*6), sState = [];
 for (let i=0;i<N;i++) sState.push({x:CX+(rnd()-.5)*2*HX, z:CZ+(rnd()-.5)*2*HZ, y:.3+rnd()*2.4, s:.6+rnd()*.8, l:.3+rnd()*.6});
 const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3));
-const streaks = new THREE.LineSegments(sGeo, new THREE.LineBasicMaterial({color:0xf5ead6, transparent:true, opacity:.36, depthWrite:false}));
+const streaks = new THREE.LineSegments(sGeo, new THREE.LineBasicMaterial({color:0x65eaff, transparent:true, opacity:.8, depthTest:false, depthWrite:false}));
 streaks.renderOrder = 6; scene.add(streaks);
 
 /* ---------- camera / controls ---------- */
@@ -579,6 +580,7 @@ const pts16 = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W
 const cEmber = new THREE.Color(0xE8823A), cRed = new THREE.Color(0xC2362B), tmp = new THREE.Color();
 
 function concAt(x, z, front){
+  if(ingredientDemo)return 0;
   return sampleGrid(sharedSimulation,(x-SRC.x)/S,-(z-SRC.y)/S);
 }
 function applySimulation(result){
@@ -761,13 +763,19 @@ function resize(){
 new ResizeObserver(resize).observe(stage);
 
 /* ---------- loop ---------- */
+const ingredientLayer=transportLayer(THREE,scene,(lat,lon)=>new THREE.Vector3((lon-D.center[1])*111320*Math.cos(D.center[0]*Math.PI/180)*S,.65,-(lat-D.center[0])*111320*S));
+let ingredientDemo=false;
+function showIngredients(frame,hidden=[]){if(!frame){lastHomes=-1;lastSchool='';if(sharedSimulation)applySimulation(sharedSimulation)}ingredientLayer.draw(frame,hidden);if(reduce)render()}
+if(shared){window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==parent)return;if(e.data?.type==='askgaia-ingredients'){ingredientDemo=!!e.data.frame;if(ingredientDemo&&e.data.wind){acceptingShared=true;speed=e.data.wind.speed;stability=e.data.wind.cls;setWind(e.data.wind.dir+180);document.getElementById('speed').value=speed;acceptingShared=false;}showIngredients(e.data.frame,e.data.hidden)}})}
+else mountTransportDemo({getLocation:()=>({lat:D.center[0],lon:D.center[1]}),onWind:w=>{speed=w.speed;setWind(w.dir+180);document.getElementById('speed').value=speed},onFrame:showIngredients,onActive:v=>{ingredientDemo=v}});
 const clock = new THREE.Clock();
 let t = 0;
 function render(){
   const front = U.uFront.value;
-  plumes.forEach(p=>{ p.material.uniforms.uTime.value = t; p.material.uniforms.uFront.value = front; });
+  plumes.forEach(p=>{ p.visible=!ingredientDemo && sharedSimulation?.status==='complete'; p.material.uniforms.uTime.value = t; p.material.uniforms.uFront.value = front; });
   syncYaw();
   updateTints(front, reduce);
+  if(ingredientDemo){document.getElementById('hSec').textContent='DEMO SOURCE · selected location · not a reported application';document.getElementById('weatherStatus').textContent='DEMO · backend ingredient transport · synthetic assumptions';document.getElementById('rSchool').textContent='Not evaluated';document.getElementById('rHomes').textContent='Not evaluated';srcPin.visible=srcDisc.visible=false;}
   placeTags(W, H);
   renderer.render(scene, camera);
 }
@@ -775,7 +783,7 @@ function frame(){
   const dt = Math.min(clock.getDelta(), .05);
   t += dt;
   U.uFront.value = Math.min(U.uFront.value + dt*(2 + speed*.9), 90);
-  const v = 1.2 + speed*.55;
+  const v = speed*.8;
   for (let i=0;i<N;i++){
     const s = sState[i];
     s.x += dirVec.x*s.s*dt*v; s.z += dirVec.y*s.s*dt*v;

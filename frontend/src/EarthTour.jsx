@@ -1,3 +1,4 @@
+import {transportLayer, mountTransportDemo} from '../public/transport-demo.mjs'
 import { scenarioFrom } from '../public/gaia-widget.mjs'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
@@ -242,7 +243,7 @@ export default function EarthTour() {
     const pPos = new Float32Array(NA * 6), pCol = new Float32Array(NA * 6)
     const pGeo = new THREE.BufferGeometry()
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3))
-    const particles = new THREE.LineSegments(pGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false }))
+    const particles = new THREE.LineSegments(pGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false }))
     particles.renderOrder = 7; particles.frustumCulled = false; particles.layers.set(1)
     const NS = 2400 // plume puffs (one shared quad, instanced)
     const sGeo = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(1, 1)); sGeo.instanceCount = NS
@@ -259,6 +260,16 @@ export default function EarthTour() {
     const plume = new THREE.Mesh(new THREE.PlaneGeometry(EXT, EXT), new THREE.MeshBasicMaterial({ map: plumeTex, transparent: true, depthTest: false, depthWrite: false }))
     plume.renderOrder = 2; plume.layers.set(1) // faint ground footprint under the puffs
     let windNow = { dir: 300, speed: 4, cls: 'D' }
+    let ingredientDemo=false,ingredientFrame=null,ingredientHidden=[],demoWind=null;
+    const ingredientLayer=transportLayer(THREE,overlay,(lat,lon)=>{const [x,y]=local(lat,lon);return new THREE.Vector3(x,y,(site?.ground||0)+50)});
+    function sendIngredients(){modelFrame.current?.contentWindow?.postMessage({type:'askgaia-ingredients',frame:ingredientFrame,hidden:ingredientHidden,wind:demoWind},location.origin)}
+    const removeDemo=mountTransportDemo({getLocation:()=>site?{lat:site.stop.lat,lon:site.stop.lon}:null,
+      onWind:w=>{demoWind=w;weatherRequest.current?.abort();setWindSrc('Demo scenario');setWind(w)},
+      onFrame:(frame,hidden)=>{ingredientFrame=frame;ingredientHidden=hidden;ingredientLayer.draw(frame,hidden);sendIngredients()},onActive:v=>{ingredientDemo=v;paintPlume()}});
+    api.current.clearDemo=()=>removeDemo.reset(true);
+    function demoReady(e){if(e.origin===location.origin&&e.source===modelFrame.current?.contentWindow&&e.data?.type==='askgaia-model-ready')sendIngredients()}
+    window.addEventListener('message',demoReady);
+
     let blds = null // { mesh, colors, items:[{start,count,x,y}] }
     const bldMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
     const hemi = new THREE.HemisphereLight(0xffffff, 0x334433, 1.6), sun = new THREE.DirectionalLight(0xffffff, 1.6)
@@ -277,8 +288,9 @@ export default function EarthTour() {
 
     let plumeRequest, sampleKey = '', sampleValues = null
     function paintPlume() {
+      if(ingredientDemo){plume.visible=puffs.visible=false;setSchoolLevel(null);if(blds){blds.colors.array.fill(0);blds.colors.needsUpdate=true}return}
       const supported = windNow.speed >= 0.5
-      plume.visible = puffs.visible = particles.visible = supported
+      plume.visible = puffs.visible = supported; particles.visible = true
       if (!supported) { plumeRequest?.abort();sampleKey='';sampleValues=null; publishSimulation({status:'calm',grid:null,source:site?.source?{lat:site.source.lat,lon:site.source.lon}:null,scenario:{speed:windNow.speed,direction:windNow.dir,stability:windNow.cls}}); setSchoolLevel(null); if(blds){blds.colors.array.fill(0);blds.colors.needsUpdate=true} return }
       if (!site?.source || windNow.speed < 0.5) return
       const [sx, sy] = local(site.source.lat, site.source.lon)
@@ -335,18 +347,18 @@ export default function EarthTour() {
     let reveal = 1, revealT0 = 0 // plume "release" animation
 
     function stepParticles(t, dt) { // fine diagonal wind streaks drifting with the wind across the whole view
-      if (!site?.source) return
+      if (!site) return
       const to = (windNow.dir + 180) * D2R, ex = Math.sin(to), ny = Math.cos(to)
-      const spd = 30 + windNow.speed * 22, gz = site.ground
+      const spd = windNow.speed * 22, gz = site.ground
       for (let i = 0; i < NA; i++) {
         const p = A[i], n = Math.sin(p.seed + t * 0.5 + p.y * 0.002) * 0.08
         const dx = ex - ny * n, dy = ny + ex * n
         p.x += dx * spd * p.v * dt; p.y += dy * spd * p.v * dt; p.age += dt
         if (p.age > p.life || Math.abs(p.x) > 2600 || Math.abs(p.y) > 2600) spawnA(p, false)
-        const f = Math.min(1, p.age / 1.2) * Math.max(0, 1 - p.age / p.life) * 0.32, o = i * 6
+        const f = Math.min(1, p.age / 1.2) * Math.max(0, 1 - p.age / p.life) * 0.85, o = i * 6
         pPos[o] = p.x; pPos[o + 1] = p.y; pPos[o + 2] = gz + p.z
         pPos[o + 3] = p.x - dx * p.len; pPos[o + 4] = p.y - dy * p.len; pPos[o + 5] = gz + p.z
-        pCol[o] = 0.96 * f; pCol[o + 1] = 0.92 * f; pCol[o + 2] = 0.84 * f; pCol[o + 3] = pCol[o + 4] = pCol[o + 5] = 0
+        pCol[o] = 0.3 * f; pCol[o + 1] = 0.9 * f; pCol[o + 2] = f; pCol[o + 3] = pCol[o + 4] = pCol[o + 5] = 0
       }
       pGeo.attributes.position.needsUpdate = pGeo.attributes.color.needsUpdate = true
     }
@@ -436,7 +448,7 @@ export default function EarthTour() {
     })
 
     let overlayVersion = 0
-    function clearOverlay() { publishSimulation({status:'loading',grid:null}); overlayVersion++; plumeRequest?.abort(); sampleKey=""; sampleValues=null; stateGroup.clear(); stateCells = null; setCountyLabels([]); setHoverCell(null); overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
+    function clearOverlay() { removeDemo.reset(true); ingredientFrame=null;ingredientDemo=false;ingredientLayer.draw(null);sendIngredients(); publishSimulation({status:'loading',grid:null}); overlayVersion++; plumeRequest?.abort(); sampleKey=""; sampleValues=null; stateGroup.clear(); stateCells = null; setCountyLabels([]); setHoverCell(null); overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
 
     async function buildOverlay(stop) {
       clearOverlay()
@@ -461,7 +473,7 @@ export default function EarthTour() {
       ell.getEastNorthUpFrame(stop.lat * D2R, stop.lon * D2R, 0, enu)
       overlay.matrix.copy(tiles.group.matrixWorld).multiply(enu); overlay.matrixWorldNeedsUpdate = true
       const ground = groundHeight(stop.lat, stop.lon) ?? 0
-      site = { stop, ground, source, target: [0, 0], cols: [] }
+      site = { stop, ground, source, target: [0, 0], cols: [] }; overlay.add(particles); particles.visible=true
       reveal = 0; revealT0 = performance.now()
       overlay.add(hemi); overlay.add(sun)
       fetchBuildings(stop.lat, stop.lon, 1300).then(list => {
@@ -608,9 +620,11 @@ export default function EarthTour() {
       if (false) stepFlight(now)
       else if (idle && !reduce) { orbitLon += 0.02; place({ ...STOPS[0], lon: orbitLon }) }
       else controls.update()
+      if(site)stepParticles(now / 1000, reduce ? 0 : dt)
+      if(ingredientDemo){plume.visible=puffs.visible=false}
       if (site?.source && windNow.speed >= 0.5) {
         if (reveal < 1) { reveal = reduce ? 1 : Math.min(1, (now - revealT0) / 3200); paintPlume() }
-        if (!reduce) { stepParticles(now / 1000, dt); stepPuffs(now / 1000, dt) } else stepPuffs(0, 0)
+        if (!reduce) { stepPuffs(now / 1000, dt) } else stepPuffs(0, 0)
         if (site.ring) { const [sx, sy] = local(site.source.lat, site.source.lon), k = (now / 1600) % 1
           site.ring.position.set(sx, sy, site.ground + 10); site.ring.scale.setScalar(80 + k * 260); site.ring.material.opacity = (1 - k) * 0.5 }
         if (site.tring) { const k = (now / 1400) % 1, tv = site.tv || 0
@@ -638,10 +652,11 @@ export default function EarthTour() {
     const start = STOPS.find(s => s.id === new URLSearchParams(location.search).get('stop'))
     if(location.hash.startsWith('#gaia=')){try{const action=JSON.parse(decodeURIComponent(location.hash.slice(6)));setTimeout(()=>window.postMessage({type:'gaia-map-action',action},location.origin),400)}catch{}}
     else if (start) setTimeout(() => api.current.fly(start), 400) // deep link, e.g. /earth?stop=salinas
-    return () => { overlayVersion++; plumeRequest?.abort(); cancelAnimationFrame(raf); removeEventListener('resize', resize); controls.dispose?.(); tiles.dispose(); renderer.dispose(); host.removeChild(renderer.domElement) }
+    return () => { removeDemo();ingredientLayer.dispose();window.removeEventListener('message',demoReady); overlayVersion++; plumeRequest?.abort(); cancelAnimationFrame(raf); removeEventListener('resize', resize); controls.dispose?.(); tiles.dispose(); renderer.dispose(); host.removeChild(renderer.domElement) }
   }, [])
 
   useEffect(() => { api.current.setWind?.(wind) }, [wind])
+  useEffect(() => {if(windSrc!=='Demo scenario')api.current.clearDemo?.()},[windSrc])
   api.current.onCustom = setCustom // the map can add a clicked place as a stop
   useEffect(() => {
     const onFly = e => {

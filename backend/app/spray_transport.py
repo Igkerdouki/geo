@@ -84,6 +84,7 @@ class SprayScenario(InputModel):
     location_uncertainty_m: float = Field(ge=0, le=10000)
     duration_minutes: int = Field(ge=1, le=120)
     horizon_minutes: int = Field(default=60, ge=1, le=120)
+    snapshot_interval_minutes: int = Field(default=5, ge=1, le=5)
     ingredients: list[Ingredient] = Field(min_length=1, max_length=10)
     wind: list[WindStep] | None = Field(default=None, min_length=1, max_length=121)
     physics: Physics | None = None
@@ -256,7 +257,7 @@ def simulate_spray(request: SprayScenario, _weather=None, _ensemble=True) -> dic
                 deposited[parcel['index']] += removed * deposit/rate
                 parcel['vapor'] += removed * vaporize/rate
             parcel['mass'] -= removed
-        if (minute+1) % 5 == 0 or minute+1 == request.horizon_minutes:
+        if (minute+1) % request.snapshot_interval_minutes == 0 or minute+1 == request.horizon_minutes:
             features = []
             budgets = []
             for index, ingredient in enumerate(request.ingredients):

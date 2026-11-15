@@ -66,3 +66,18 @@ def test_api_validation_and_no_synthetic_fallback(monkeypatch):
         def fail(*args): raise RuntimeError('provider offline')
         monkeypatch.setattr('app.spray_transport.wind_conditions',fail)
         assert client.post('/workflows/simulate-spray',json=scenario(wind=None)).status_code==503
+
+
+def test_demo_interval_wind_comparison_and_ingredient_mass():
+    ingredients=[dict(name='A',applied_kg=1,airborne_fraction=.1,deposition_half_life_minutes=20,assumption_source='Synthetic'),dict(name='B',applied_kg=1,airborne_fraction=.1,deposition_half_life_minutes=2,assumption_source='Synthetic')]
+    def run(speed):return simulate_spray(SprayScenario(**scenario(horizon_minutes=5,snapshot_interval_minutes=1,ingredients=ingredients,wind=[dict(minute=0,speed_ms=speed,from_deg=270)])))
+    calm,strong=run(.2),run(8)
+    assert [f['minute'] for f in calm['snapshots']]==[1,2,3,4,5]
+    for result in (calm,strong):
+        balances=result['snapshots'][-1]['mass_balance']
+        assert balances[0]['airborne_kg']>balances[1]['airborne_kg']
+        for b in balances:assert b['airborne_kg']+b['deposited_kg']+b['degraded_kg']==pytest.approx(b['released_airborne_kg'])
+    origin=scenario()['source_lon']
+    calm_dx=calm['snapshots'][-1]['parcels']['features'][0]['geometry']['coordinates'][0]-origin
+    strong_dx=strong['snapshots'][-1]['parcels']['features'][0]['geometry']['coordinates'][0]-origin
+    assert strong_dx/calm_dx==pytest.approx(40)
