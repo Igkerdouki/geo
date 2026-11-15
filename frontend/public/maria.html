@@ -161,7 +161,7 @@ const CH = [
   { time:'8:00', ap:'PM', t:'And the planet', quote:true,
     story:'Maria does her homework at the kitchen table. The fields are quiet. Her town is one small part of something much bigger.',
     data:'Making a kilogram of pesticide takes <b>10×</b> the energy of nitrogen fertilizer.',
-    src:'Rachel Carson · Silent Spring, 1962' }
+    src:'Lee et al. · Environmental Health Perspectives, 2011 · 2,945 drift cases' }
 ];
 const LAST = CH.length - 1;
 const CLOCK = [400, 425, 450, 615, 980, 1200];            // minutes since midnight
@@ -706,7 +706,7 @@ function capHTML(i) {
     <div class="te-mono te-chap">Chapter ${String(i + 1).padStart(2, '0')} / 06</div>
     <h2 class="te-title">${c.t}</h2>
     <p class="te-story">${c.story}</p>
-    ${c.quote ? `<p class="te-quote">“In nature nothing exists alone.”</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
+    ${c.quote ? `<p class="te-quote">People in California’s most farm-heavy counties fall ill from pesticide drift 27 times more often than people in other counties.</p><div class="te-src" style="margin-top:0">${c.src}</div>` : ''}
     <div class="te-mono te-data">${c.data}</div>
     ${c.quote ? '' : `<div class="te-src">Source · ${c.src}</div>`}
     ${c.quote ? `<a class="te-cta" href="/home.html">Ask Gaia about your place <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>` : nav}`;
