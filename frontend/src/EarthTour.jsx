@@ -619,7 +619,15 @@ export default function EarthTour() {
   const stops = custom ? [...STOPS, custom] : STOPS
   const stop = stops.find(s => s.id === active)
 
-  function go(s) { if (KEY) api.current.fly?.(s) }
+  function go(s) { // without a Google key there is no globe to fly over, so open the town model directly
+    if (KEY) return api.current.fly?.(s)
+    setMoving(false); setActive(s.id); setView(s.model || s.plume ? 'model' : 'satellite')
+  }
+  useEffect(() => { // no key: still honour /earth?stop=… by opening its model
+    if (KEY) return
+    const s = STOPS.find(x => x.id === new URLSearchParams(location.search).get('stop'))
+    if (s) go(s)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { // deep link from the landing page: /earth?q=Alisal High School
     const q = new URLSearchParams(location.search).get('q')
@@ -675,7 +683,7 @@ export default function EarthTour() {
       {hoverCell && <div className="earth-hover" style={{ left: hoverCell.x + 14, top: hoverCell.y + 14 }}>
         <b>{fmtLbs(hoverCell.lbs)} lbs</b><span>{hoverCell.county} County · 2020–2024</span><span>{Math.round(100 * hoverCell.fumigant_lbs / hoverCell.lbs)}% fumigants · click to fly in</span></div>}
       <div className="earth-tag" ref={tagRef}>{pinLabel || stop?.target}</div>
-      {!KEY && (
+      {!KEY && view !== 'model' && (
         <div className="earth-missing"><h2>Add a Google Maps key to see photorealistic 3D</h2>
           <p>Put <code>VITE_GOOGLE_MAPS_KEY=…</code> in <code>frontend/.env.local</code>, then restart <code>npm run dev</code>.</p></div>
       )}
@@ -713,7 +721,7 @@ export default function EarthTour() {
 
       <nav className="earth-stops" aria-label="Places">
         {stops.map(s => (
-          <button key={s.id} aria-pressed={active === s.id} disabled={moving || !KEY} onClick={() => go(s)}>{s.label}</button>
+          <button key={s.id} aria-pressed={active === s.id} disabled={moving} onClick={() => go(s)}>{s.label}</button>
         ))}
       </nav>
 
