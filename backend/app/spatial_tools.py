@@ -29,6 +29,8 @@ def _db():
     url = os.getenv('PUR_DATABASE_URL') or os.getenv('DATABASE_URL')
     if not url:
         raise ValueError('Configure PUR_DATABASE_URL or DATABASE_URL for spatial PUR tools.')
+    from app.neon_http import enabled, ReadConnection
+    if enabled(): return ReadConnection(url)
     conn = psycopg.connect(url, autocommit=True, connect_timeout=8)
     conn.execute("SET statement_timeout TO '15s'")
     conn.execute("SET search_path TO public")
@@ -67,6 +69,8 @@ def pur_records(lat: float, lon: float, radius_km: float = 1.25,
         raise ValueError('Invalid coordinates.')
     if not 0 < radius_km <= 25 or not 1 <= top <= 100 or not 1900 <= start_year <= end_year <= 2100:
         raise ValueError('Use radius (0,25] km, top 1–100, and an ordered year range.')
+    from app.coverage import california_location
+    california_location(lat, lon)
     radius_m = radius_km * 1000
     deg = radius_km / 80 + 0.02  # generous bounding box for the index
     with _db() as conn:
@@ -74,7 +78,7 @@ def pur_records(lat: float, lon: float, radius_km: float = 1.25,
             """
             WITH pt AS (SELECT ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), 4326) g),
             near AS (
-              SELECT s.comtrs FROM plss_sections s, pt
+              SELECT DISTINCT s.comtrs FROM plss_sections s, pt
               WHERE s.geom && ST_Expand(pt.g, %(deg)s)
                 AND ST_DWithin(s.geom::geography, pt.g::geography, %(r)s))
             SELECT p.chem_code, c.chemname, sum(p.lbs) lbs, sum(p.n_apps) apps,
@@ -89,7 +93,7 @@ def pur_records(lat: float, lon: float, radius_km: float = 1.25,
             """
             WITH pt AS (SELECT ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), 4326) g),
             near AS (
-              SELECT s.comtrs FROM plss_sections s, pt
+              SELECT DISTINCT s.comtrs FROM plss_sections s, pt
               WHERE s.geom && ST_Expand(pt.g, %(deg)s)
                 AND ST_DWithin(s.geom::geography, pt.g::geography, %(r)s))
             SELECT p.month, sum(p.lbs) FROM pur_monthly p JOIN near USING (comtrs)

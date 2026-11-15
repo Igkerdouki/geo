@@ -7,7 +7,15 @@
     <title>AskGaia · Environmental Intelligence</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p style="padding:24px">Loading AskGaia…</p></div>
+    <script>
+      window.addEventListener('error', function (event) {
+        const root = document.getElementById('root');
+        if (root && root.textContent === 'Loading AskGaia…') {
+          root.textContent = 'AskGaia failed to start: ' + (event.message || 'A required script could not load. Reload the page.');
+        }
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

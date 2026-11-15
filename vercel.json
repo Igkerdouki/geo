@@ -24,6 +24,16 @@
     {
       "source": "/earth",
       "destination": "/index.html"
+    },
+    {
+      "source": "/investigate",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/gaia/alerts/check",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

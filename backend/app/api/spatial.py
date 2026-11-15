@@ -17,6 +17,54 @@ def _outer_ring(gj):
     return poly[0]  # [[lon, lat], ...]
 
 
+from pydantic import BaseModel, Field
+from typing import Literal
+from app.simulation import relative_at
+from app.spatial_tools import _ground_conc
+import math
+
+@router.get('/spatial/summary')
+def historical_summary():
+    try:
+        with _db() as conn:
+            row = conn.execute('SELECT min(year), max(year), coalesce(sum(lbs), 0) FROM pur_monthly').fetchone()
+        return {'start_year':row[0], 'end_year':row[1], 'total_lbs':float(row[2]),
+                'source':'Configured CDPR PUR database', 'label':'recorded historical use'}
+    except Exception:
+        raise HTTPException(503, 'Historical totals unavailable.') from None
+
+
+class Offset(BaseModel):
+    east: float = Field(ge=-10000, le=10000, allow_inf_nan=False)
+    north: float = Field(ge=-10000, le=10000, allow_inf_nan=False)
+
+
+class PlumeSamples(BaseModel):
+    speed: float = Field(ge=0.5, le=60, allow_inf_nan=False)
+    direction: float = Field(ge=0, lt=360, allow_inf_nan=False)
+    stability: Literal['A', 'B', 'C', 'D', 'E', 'F'] = 'D'
+    points: list[Offset] = Field(min_length=1, max_length=30000)
+
+
+@router.post('/spatial/plume')
+def plume_samples(body: PlumeSamples):
+    ref = _ground_conc(150, 0, body.speed, body.stability)
+    angle = math.radians((body.direction + 180) % 360)
+    def display_value(p):
+        along = p.east * math.sin(angle) + p.north * math.cos(angle)
+        cross = -p.east * math.cos(angle) + p.north * math.sin(angle)
+        c = _ground_conc(along, cross, body.speed, body.stability)
+        return max(0, min(1, 1 + math.log10(c / ref) / 2.6)) if c > 0 and ref > 0 else 0
+    return {'display_values': [display_value(p) for p in body.points],
+            'display_normalization': 'Log relative to 150 m downwind; illustrative display index, not exposure.',
+            'values': [relative_at(p.east, p.north, body.speed, body.direction, body.stability) for p in body.points],
+            'label': 'modelled', 'engine': 'Gaussian plume / Briggs rural screening model',
+            'normalization': 'Relative to 100 m downwind; clipped to [0,1]. Not exposure or probability.',
+            'source_kind': 'Hypothetical section centroid; historical use does not establish current spraying.'}
+
+
+
+
 @router.get("/spatial/sections")
 def sections_near(lat: float = Query(..., ge=32, le=42.5), lon: float = Query(..., ge=-125, le=-114),
                   radius_km: float = Query(4.0, gt=0, le=15),

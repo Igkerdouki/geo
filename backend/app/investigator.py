@@ -3,7 +3,7 @@ import asyncio
 import os
 from uuid import uuid4
 from pydantic import BaseModel, Field
-from openai import AsyncOpenAI
+from app.llm import llm_client, model_name
 from app import evidence_store as store
 from app.evidence_tools import capabilities, search_web, retrieve_source, county_records, source_changes, SEEDS, ToolError
 
@@ -57,8 +57,8 @@ async def analyze(case):
     context = dict(question=case['question'], place=case['place'], followup=case.get('active_gap'),
                    sources=[{k:s[k] for k in ('id','title','url','text')} for s in case['sources'][-8:]])
     import json
-    async with AsyncOpenAI(timeout=70, max_retries=1) as client:
-        response = await client.responses.parse(model=os.getenv('OPENAI_MODEL', 'gpt-4.1-mini'),
+    async with llm_client(timeout=70, max_retries=1) as client:
+        response = await client.responses.parse(model=model_name(),
                     instructions=SYSTEM, input=json.dumps(context), text_format=Analysis, store=False,
                     max_output_tokens=2200)
     parsed = response.output_parsed

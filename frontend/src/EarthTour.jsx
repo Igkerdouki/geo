@@ -1,3 +1,4 @@
+import { scenarioFrom } from '../public/gaia-widget.mjs'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
@@ -10,6 +11,8 @@ import {
   TilesFadePlugin, GLTFExtensionsPlugin,
 } from '3d-tiles-renderer/plugins'
 import './EarthTour.css'
+import { sampleGrid, mapSimulation, mountInvestigation } from '../public/map-workflow.mjs'
+import { api as backend } from './workflowClient.mjs'
 
 const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
 const D2R = Math.PI / 180
@@ -135,6 +138,14 @@ const fmtLbs = n => n >= 1e6 ? (n / 1e6).toFixed(2) + ' M' : n >= 1e3 ? Math.rou
 const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + ' M' : n >= 1e3 ? Math.round(n / 1e3) + ' k' : String(n)
 
 export default function EarthTour() {
+  const modelFrame = useRef(null), sharedResult = useRef(null), investigationHost = useRef(null), contextRef = useRef(null)
+  const gaiaMapMode=useRef(false)
+  function publishGaia(result=sharedResult.current){
+    const c=contextRef.current;if(!c || !Number.isFinite(c.lat))return
+    const msg={type:'gaia-context',context:{location:{name:c.place || 'Selected location',lat:c.lat,lon:c.lon},scenario:scenarioFrom(result)}};
+    window.postMessage(msg,location.origin);if(window.parent!==window)window.parent.postMessage(msg,location.origin)
+  }
+  function publishSimulation(result) { sharedResult.current=result; publishGaia(result); modelFrame.current?.contentWindow?.postMessage({type:'askgaia-simulation',result},location.origin) }
   const mount = useRef(null), api = useRef({}), tagRef = useRef(null)
   const embed = new URLSearchParams(location.search).has('embed')
   const deep = (() => { const s = new URLSearchParams(location.search); return s.get('q') || s.get('stop') || (embed ? 'embed' : null) })()
@@ -145,6 +156,8 @@ export default function EarthTour() {
   const [data, setData] = useState(null)
   const [wind, setWind] = useState({ dir: 300, speed: 4, cls: 'D' })
   const [windSrc, setWindSrc] = useState('Scenario')
+  const weatherRequest = useRef(null)
+  const [weatherRefresh, setWeatherRefresh] = useState(0)
   const [schoolLevel, setSchoolLevel] = useState(null)
   const [query, setQuery] = useState('')
   const [searchMsg, setSearchMsg] = useState('')
@@ -167,7 +180,7 @@ export default function EarthTour() {
   function dragDial(e) {
     const el = dialRef.current; if (!el) return
     const r = el.getBoundingClientRect(), x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2)
-    setWindSrc('Scenario'); setWind(w => ({ ...w, dir: Math.round((Math.atan2(x, -y) / D2R + 360) % 360) }))
+    weatherRequest.current?.abort(); setWindSrc('Scenario'); setWind(w => ({ ...w, dir: Math.round((Math.atan2(x, -y) / D2R + 360) % 360) }))
   }
   useEffect(() => { // count up to the recorded total once on load
     const TOTAL = 1_919_790_000, t0 = performance.now(), dur = 2600
@@ -262,10 +275,30 @@ export default function EarthTour() {
       return ell.getPositionToCartographic(hit.point.clone().applyMatrix4(inv), {}).height
     }
 
+    let plumeRequest, sampleKey = '', sampleValues = null
     function paintPlume() {
-      if (!site?.source) return
+      const supported = windNow.speed >= 0.5
+      plume.visible = puffs.visible = particles.visible = supported
+      if (!supported) { plumeRequest?.abort();sampleKey='';sampleValues=null; publishSimulation({status:'calm',grid:null,source:site?.source?{lat:site.source.lat,lon:site.source.lon}:null,scenario:{speed:windNow.speed,direction:windNow.dir,stability:windNow.cls}}); setSchoolLevel(null); if(blds){blds.colors.array.fill(0);blds.colors.needsUpdate=true} return }
+      if (!site?.source || windNow.speed < 0.5) return
       const [sx, sy] = local(site.source.lat, site.source.lon)
       plume.position.set(sx, sy, site.ground + 6)
+      const key = JSON.stringify([overlayVersion, site.source.comtrs, site.target, windNow, blds?.items.length || 0])
+      if (key !== sampleKey) {
+        sampleKey = key; sampleValues = null; plumeRequest?.abort()
+        const request = new AbortController(); plumeRequest = request
+        mapSimulation({source_lat:site.source.lat,source_lon:site.source.lon,speed:windNow.speed,direction:windNow.dir,stability:windNow.cls},request.signal)
+          .then(result => {if(!request.signal.aborted && key===sampleKey){
+            const values=[];
+            for(let j=0;j<SZ;j++)for(let i=0;i<SZ;i++)values.push(sampleGrid(result,(i/(SZ-1)-.5)*EXT,(j/(SZ-1)-.5)*EXT));
+            for(const b of blds?.items || [])values.push(sampleGrid(result,b.x-sx,b.y-sy));
+            values.push(sampleGrid(result,site.target[0]-sx,site.target[1]-sy));
+            sampleValues=values; publishSimulation({...result,target:{lat:site.stop.lat+site.target[1]/M,lon:site.stop.lon+site.target[0]/(M*Math.cos(site.stop.lat*D2R))}});paintPlume()
+          }})
+          .catch(e => {if(e.name!=='AbortError' && key===sampleKey){publishSimulation({status:'error',grid:null});setSearchMsg('Backend plume unavailable. No exposure result inferred.')}})
+      }
+      if (!sampleValues) { plume.visible=puffs.visible=false;setSchoolLevel(null);if(blds){blds.colors.array.fill(0);blds.colors.needsUpdate=true}return }
+      plume.visible=puffs.visible=true
       const ref = conc(150, 0, { ...windNow, dir: 270 }) || 1e-9 // 150 m straight downwind = 1.0
       site.ref = ref
       let reach = 300 // how far downwind the centreline stays visible; puffs live out to here
@@ -274,24 +307,23 @@ export default function EarthTour() {
       const front = reveal * EXT * 0.5 // during the release animation only the reached area shows
       for (let j = 0; j < SZ; j++) for (let i = 0; i < SZ; i++) {
         const dx = (i / (SZ - 1) - 0.5) * EXT, dy = (j / (SZ - 1) - 0.5) * EXT
-        const v = Math.hypot(dx, dy) > front ? 0 : logv(conc(dx, dy, windNow), ref)
+        const v = Math.hypot(dx, dy) > front ? 0 : sampleValues[j * SZ + i]
         const o = (j * SZ + i) * 4, [r, g, b] = warm(v)
         plumeData[o] = r; plumeData[o + 1] = g; plumeData[o + 2] = b; plumeData[o + 3] = v < 0.03 ? 0 : 18 + v * 80
       }
       plumeTex.needsUpdate = true
       if (blds) { // colour every modelled building by the drift reaching it
         const c = blds.colors.array
-        for (const b of blds.items) {
-          const v = Math.hypot(b.x - sx, b.y - sy) > front ? 0 : logv(conc(b.x - sx, b.y - sy, windNow), ref)
+        for (const [bi, b] of blds.items.entries()) {
+          const v = Math.hypot(b.x - sx, b.y - sy) > front ? 0 : sampleValues[SZ * SZ + bi]
           const [r, g, bb] = warm(0.25 + 0.75 * v), a = v < 0.05 ? 0 : 0.35 + 0.5 * v // only buildings the drift reaches light up, orange to red
           for (let i = b.start; i < b.start + b.count; i++) { c[i * 4] = r / 255; c[i * 4 + 1] = g / 255; c[i * 4 + 2] = bb / 255; c[i * 4 + 3] = a }
         }
         blds.colors.needsUpdate = true
       }
       const [tx, ty] = site.target
-      const v = conc(tx - sx, ty - sy, windNow) / ref
-      setSchoolLevel(v > 0 ? Math.max(0, Math.min(1, 1 + Math.log10(v) / 2.6)) : 0)
-      site.tv = Math.hypot(tx - sx, ty - sy) > front ? 0 : logv(conc(tx - sx, ty - sy, windNow), ref)
+      setSchoolLevel(sampleValues.at(-1))
+      site.tv = Math.hypot(tx - sx, ty - sy) > front ? 0 : sampleValues.at(-1)
     }
 
     function spawnA(p, init) { // ambient wind streak anywhere in the 5 km view, relative to the stop
@@ -325,7 +357,7 @@ export default function EarthTour() {
     }
     S.forEach(p => spawnPuff(p, true))
     function stepPuffs(t, dt) { // positions, sizes and brightness all follow the Gaussian plume for the current wind
-      if (!site?.source) return
+      if (!site?.source || windNow.speed < 0.5) return
       const [sx, sy] = local(site.source.lat, site.source.lon)
       const to = (windNow.dir + 180) * D2R, ex = Math.sin(to), ny = Math.cos(to)
       const [ay, szf] = SIG[windNow.cls], ref = site.ref || 1, reach = site.reach || 1500, front = reveal * EXT * 0.5
@@ -339,7 +371,7 @@ export default function EarthTour() {
         const fade = Math.min(1, p.d / 120) * Math.min(1, (reach - p.d) / (reach * 0.25)) // grow in at the field, thin out at the tail
         const cw = (p.c + Math.sin(p.seed + t * 0.25) * 0.18) * sY, along = p.d + Math.sin(p.seed * 1.7 + t * 0.2) * sY * 0.25
         const lx = p.ox * Math.min(1, 200 / (p.d + 200)) + along * ex - cw * ny, ly = p.oy * Math.min(1, 200 / (p.d + 200)) + along * ny + cw * ex
-        const v = Math.hypot(lx, ly) > front ? 0 : logv(conc(x, p.c * sY, w270), ref)
+        const v = Math.hypot(lx, ly) > front ? 0 : sampleGrid(sharedResult.current,lx,ly)
         const size = 40 + sY * 2.6 + sZ * 0.8
         sPos[i * 3] = sx + lx; sPos[i * 3 + 1] = sy + ly
         sPos[i * 3 + 2] = site.ground + 4 + size * 0.18 + p.zg * sZ * lift * 1.6 + Math.sin(p.seed + t * 0.4) * sZ * 0.08
@@ -356,11 +388,11 @@ export default function EarthTour() {
     let stateCells = null // { mesh, cells }
     let stateToken = 0
     async function buildState() {
-      const my = ++stateToken
+      const version = overlayVersion
       stateGroup.clear(); stateCells = null
       let grid, counties
-      try { [grid, counties] = await Promise.all([fetch('/api/spatial/grid').then(r => r.json()), fetch('/api/spatial/counties').then(r => r.json())]) } catch { return }
-      if (my !== stateToken || site) return // a newer build or a different stop took over
+      try { [grid, counties] = await Promise.all([backend('/spatial/grid'), backend('/spatial/counties')]) } catch { if(version===overlayVersion)setSearchMsg('Statewide records unavailable.'); return }
+      if(version!==overlayVersion)return
       const cells = grid.cells.filter(c => c.lbs >= 50_000), max = Math.max(...cells.map(c => c.lbs)), half = grid.cell_deg / 2
       const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
       const mat = new THREE.MeshBasicMaterial({ depthWrite: true })
@@ -403,24 +435,28 @@ export default function EarthTour() {
       api.current.onCustom?.(s); api.current.fly(s)
     })
 
-    function clearOverlay() { stateToken++; stateGroup.clear(); stateCells = null; setCountyLabels([]); setHoverCell(null); overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
+    let overlayVersion = 0
+    function clearOverlay() { publishSimulation({status:'loading',grid:null}); overlayVersion++; plumeRequest?.abort(); sampleKey=""; sampleValues=null; stateGroup.clear(); stateCells = null; setCountyLabels([]); setHoverCell(null); overlay.clear(); if (blds) { blds.mesh.geometry.dispose(); blds = null } site = null; setSchoolLevel(null); setBuildingCount(0) }
 
     async function buildOverlay(stop) {
       clearOverlay()
+      const version = overlayVersion
       if (stop.state) { buildState(); return }
       if (!stop.radius) return
       let json
-      try { json = await (await fetch(`/api/spatial/sections?lat=${stop.lat}&lon=${stop.lon}&radius_km=${stop.radius}&limit=80`)).json() }
-      catch { json = { sections: [] } }
+      try { json = await backend(`/spatial/sections?lat=${stop.lat}&lon=${stop.lon}&radius_km=${stop.radius}&limit=80&start_year=${stop.start_year||2020}&end_year=${stop.end_year||2024}`) }
+      catch { if (version === overlayVersion) setSearchMsg('Historical records unavailable. Check the backend connection.'); return }
+      if (version !== overlayVersion) return
       const secs = json.sections || []
       // Plume source: the heaviest-treated section that is also close to the place (distance-weighted)
       const near = s => { const d = Math.hypot((s.lon - stop.lon) * M * Math.cos(stop.lat * D2R), (s.lat - stop.lat) * M); return (s.fumigant_lbs || s.lbs * 0.05) / (1 + (d / 700) ** 3) }
-      const source = stop.plume ? [...secs].sort((a, b) => near(b) - near(a))[0] : null
+      const source = stop.plume ? secs.filter(s => s.lbs > 0).sort((a, b) => near(b) - near(a))[0] : null
+      if (!source) publishSimulation({status:'no_source',grid:null,scenario:{speed:windNow.speed,direction:windNow.dir,stability:windNow.cls}})
       if (source) source.bearing = (Math.atan2((source.lon - stop.lon) * Math.cos(stop.lat * D2R), source.lat - stop.lat) / D2R + 360) % 360
       if (source) source.distance = Math.round(Math.hypot((source.lon - stop.lon) * M * Math.cos(stop.lat * D2R), (source.lat - stop.lat) * M))
-      if (source) setWindSrc('Scenario: wind blowing from the field toward ' + stop.target)
       setData({ stop, secs, source, total: secs.reduce((s, x) => s + x.lbs, 0), fum: secs.reduce((s, x) => s + x.fumigant_lbs, 0) })
       await new Promise(r => setTimeout(r, 900)) // let ground tiles settle before sampling height
+      if (version !== overlayVersion) return
       const enu = new THREE.Matrix4()
       ell.getEastNorthUpFrame(stop.lat * D2R, stop.lon * D2R, 0, enu)
       overlay.matrix.copy(tiles.group.matrixWorld).multiply(enu); overlay.matrixWorldNeedsUpdate = true
@@ -459,7 +495,6 @@ export default function EarthTour() {
         const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, p.y, ground + 6))), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.85, depthTest: false }))
         edge.renderOrder = 2; edge.layers.set(1); overlay.add(edge)
       }
-      if (source) setWind(w => ({ ...w, dir: Math.round(source.bearing), speed: 2.5, cls: 'E' })) // open on the scenario that reaches the place
       if (site.source) {
         overlay.add(plume); overlay.add(puffs); overlay.add(particles); paintPlume(); S.forEach(p => spawnPuff(p, true))
         const pin = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 1, 12).rotateX(Math.PI / 2).translate(0, 0, 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }))
@@ -472,7 +507,12 @@ export default function EarthTour() {
       }
     }
 
-    api.current.setWind = w => { windNow = w; paintPlume() }
+    api.current.applyGaiaScenario = s => {
+      if(!site || !Number.isFinite(s.source_lat) || !Number.isFinite(s.source_lon) || !Number.isFinite(s.speed) || !Number.isFinite(s.direction) || !/^[A-F]$/.test(s.stability))return;
+      site.source={...(site.source||{}),lat:s.source_lat,lon:s.source_lon,comtrs:'gaia-scenario'};
+      setWind({speed:s.speed,dir:s.direction,cls:s.stability});setWindSrc('Gaia report scenario');sampleKey='';
+    }
+    api.current.setWind = w => { windNow = w; if(site && !site.source)publishSimulation({status:'no_source',grid:null,scenario:{speed:w.speed,direction:w.dir,stability:w.cls}}); paintPlume() }
     api.current.zoom = f => { // move the camera toward / away from the point at screen centre
       const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(0, 0), camera)
       const hit = ray.intersectObject(tiles.group, true)[0]
@@ -533,6 +573,7 @@ export default function EarthTour() {
       const from = { lat: cart.lat / D2R, lon: cart.lon / D2R, height: cart.height, tilt: 0 }
       flight = { from, to, t0: performance.now(), dur: to.id === 'earth' || from.height > 2e6 ? 3800 : 3000 }
       idle = to.id === 'earth'; controls.enabled = false
+      if (!STOPS.some(s => s.id === to.id)) setCustom(to)
       clearOverlay(); setData(null); setPinLabel(''); setView('satellite'); setMoving(true); setActive(to.id)
     }
     const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -567,7 +608,7 @@ export default function EarthTour() {
       if (false) stepFlight(now)
       else if (idle && !reduce) { orbitLon += 0.02; place({ ...STOPS[0], lon: orbitLon }) }
       else controls.update()
-      if (site?.source) {
+      if (site?.source && windNow.speed >= 0.5) {
         if (reveal < 1) { reveal = reduce ? 1 : Math.min(1, (now - revealT0) / 3200); paintPlume() }
         if (!reduce) { stepParticles(now / 1000, dt); stepPuffs(now / 1000, dt) } else stepPuffs(0, 0)
         if (site.ring) { const [sx, sy] = local(site.source.lat, site.source.lon), k = (now / 1600) % 1
@@ -595,8 +636,9 @@ export default function EarthTour() {
     }
     raf = requestAnimationFrame(loop)
     const start = STOPS.find(s => s.id === new URLSearchParams(location.search).get('stop'))
-    if (start) setTimeout(() => api.current.fly(start), 400) // deep link, e.g. /earth?stop=salinas
-    return () => { cancelAnimationFrame(raf); removeEventListener('resize', resize); controls.dispose?.(); tiles.dispose(); renderer.dispose(); host.removeChild(renderer.domElement) }
+    if(location.hash.startsWith('#gaia=')){try{const action=JSON.parse(decodeURIComponent(location.hash.slice(6)));setTimeout(()=>window.postMessage({type:'gaia-map-action',action},location.origin),400)}catch{}}
+    else if (start) setTimeout(() => api.current.fly(start), 400) // deep link, e.g. /earth?stop=salinas
+    return () => { overlayVersion++; plumeRequest?.abort(); cancelAnimationFrame(raf); removeEventListener('resize', resize); controls.dispose?.(); tiles.dispose(); renderer.dispose(); host.removeChild(renderer.domElement) }
   }, [])
 
   useEffect(() => { api.current.setWind?.(wind) }, [wind])
@@ -612,14 +654,44 @@ export default function EarthTour() {
   }, [])
   useEffect(() => { // land on the satellite view, then morph into the town model
     const s = (custom ? [...STOPS, custom] : STOPS).find(x => x.id === active)
-    if (moving || !(s?.plume || s?.model)) return
+    if (gaiaMapMode.current || moving || !(s?.plume || s?.model)) return
     const id = setTimeout(() => setView('model'), 900); return () => clearTimeout(id)
   }, [moving, active]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stops = custom ? [...STOPS, custom] : STOPS
   const stop = stops.find(s => s.id === active)
 
+  contextRef.current = {place:stop?.title || stop?.label,lat:stop?.lat,lon:stop?.lon,simulation:sharedResult.current}
+  useEffect(()=>{if(stop?.plume)publishGaia()},[stop?.lat,stop?.lon])
+  useEffect(()=>{
+    const receive=e=>{
+      if(e.origin!==location.origin || ![window,window.parent].includes(e.source) || e.data?.type!=='gaia-map-action')return
+      const a=e.data.action,l=a?.location;if(!l || !Number.isFinite(l.lat) || !Number.isFinite(l.lon) || l.lat<32 || l.lat>42.1 || l.lon< -125 || l.lon> -114)return
+      gaiaMapMode.current=true;
+      if(a.kind==='scenario' && a.scenario){api.current.applyGaiaScenario?.(a.scenario);setView('model');return}
+      const s={id:'gaia',label:l.name,title:l.name,target:l.name,lat:l.lat,lon:l.lon,height:600,tilt:64,radius:a.radius_km||4,plume:true,start_year:a.start_year||2020,end_year:a.end_year||2024,note:'Gaia evidence location. Recorded use does not establish exposure.'};
+      setCustom(s);setView('satellite');api.current.fly?.(s)
+    };window.addEventListener('message',receive);return()=>window.removeEventListener('message',receive)
+  },[])
+  useEffect(() => {
+    if(!stop?.plume || !investigationHost.current)return
+    return mountInvestigation(investigationHost.current,()=>({...contextRef.current,lat:sharedResult.current?.target?.lat ?? contextRef.current.lat,lon:sharedResult.current?.target?.lon ?? contextRef.current.lon,simulation:sharedResult.current}))
+  },[stop?.lat,stop?.lon])
+  useEffect(() => {
+    const receive = e => {
+      if(e.origin!==location.origin || e.source!==modelFrame.current?.contentWindow)return
+      if(e.data?.type==='askgaia-model-ready' && sharedResult.current) publishSimulation(sharedResult.current)
+      if(e.data?.type==='askgaia-wind-change'){
+        const w=e.data.wind;
+        if(!w || !Number.isFinite(w.speed) || w.speed<0 || w.speed>60 || !Number.isFinite(w.direction) || !/^[A-F]$/.test(w.stability))return
+        weatherRequest.current?.abort();setWindSrc('Shared scenario');setWind({speed:w.speed,dir:((w.direction%360)+360)%360,cls:w.stability})
+      }
+      if(e.data?.type==='askgaia-current-wind')setWeatherRefresh(n=>n+1)
+    }
+    window.addEventListener('message',receive);return()=>window.removeEventListener('message',receive)
+  },[])
   function go(s) { // without a Google key there is no globe to fly over, so open the town model directly
+    gaiaMapMode.current=false
     if (KEY) return api.current.fly?.(s)
     setMoving(false); setActive(s.id); setView(s.model || s.plume ? 'model' : 'satellite')
   }
@@ -628,6 +700,7 @@ export default function EarthTour() {
     const s = STOPS.find(x => x.id === new URLSearchParams(location.search).get('stop'))
     if (s) go(s)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   useEffect(() => { // deep link from the landing page: /earth?q=Alisal High School
     const q = new URLSearchParams(location.search).get('q')
@@ -661,16 +734,22 @@ export default function EarthTour() {
     } catch { setSearchMsg('Search is unavailable right now.') }
   }
 
-  async function liveWind() {
-    try {
-      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${stop.lat}&longitude=${stop.lon}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`)
-      const c = (await r.json()).current
-      setWind(w => ({ ...w, dir: Math.round(c.wind_direction_10m), speed: Math.round(c.wind_speed_10m * 10) / 10 }))
-      setWindSrc(`Live wind, ${c.time.slice(11)} local`)
-    } catch { setWindSrc('Live wind unavailable') }
-  }
+  function liveWind() { setWeatherRefresh(n => n + 1) }
+  useEffect(() => {
+    weatherRequest.current?.abort()
+    if (!stop?.plume) return
+    const controller = new AbortController(); weatherRequest.current = controller
+    setWind(w => ({ ...w, speed: 0 })); setWindSrc('Loading current weather…')
+    backend(`/workflows/weather?lat=${stop.lat}&lon=${stop.lon}`, {signal:controller.signal}).then(c => {
+      if (controller.signal.aborted) return
+      if (!Number.isFinite(c.speed_ms) || c.speed_ms < 0 || !Number.isFinite(c.from_deg)) throw new Error('Invalid weather')
+      setWind(w => ({ ...w, dir: ((c.from_deg % 360) + 360) % 360, speed: c.speed_ms }))
+      setWindSrc(`${c.source} model · ${c.valid_at_utc} UTC${c.speed_ms < 0.5 ? ' · Calm wind: plume unavailable' : ''}`)
+    }).catch(e => { if (e.name !== 'AbortError') setWindSrc('Current weather unavailable. Choose a scenario wind to explore.') })
+    return () => controller.abort()
+  }, [stop?.lat, stop?.lon, stop?.plume, weatherRefresh])
 
-  const level = schoolLevel == null ? null : schoolLevel < 0.05 ? 'Not downwind' : schoolLevel < 0.35 ? 'Low' : schoolLevel < 0.65 ? 'Moderate' : 'High'
+  const level = schoolLevel == null ? null : schoolLevel < 0.05 ? '<0.05' : schoolLevel < 0.35 ? '0.05–0.35' : schoolLevel < 0.65 ? '0.35–0.65' : '0.65–1.00'
   const atEarth = active === 'earth'
   return (
     <div className={'earth' + (atEarth ? ' is-home' : '')}>
@@ -689,7 +768,7 @@ export default function EarthTour() {
       )}
       {!embed && <header className="earth-head">
         <a className="earth-brand" href="/earth" onClick={e => { e.preventDefault(); go(STOPS[0]) }}><span className="earth-dot" />askgaia</a>
-        <nav className="earth-nav"><a href="/">Investigate</a><a href="/explorer">Data explorer</a><span>Earth, understood.</span></nav>
+        <nav className="earth-nav"><a href="/investigate">Investigate</a><a href="/explorer">Data explorer</a><span>Earth, understood.</span></nav>
       </header>}
 
       {atEarth && !embed && (
@@ -727,9 +806,10 @@ export default function EarthTour() {
 
       {stop?.title && (
         <section className="earth-card" aria-live="polite">
-          <p className="earth-kicker">{moving ? 'Flying…' : 'Recorded 2020–2024 · latest published'}</p>
+          <p className="earth-kicker">{moving ? 'Flying…' : `Recorded ${stop.start_year||2020}–${stop.end_year||2024}`}</p>
           <h1>{stop.title}</h1>
-          <p className="earth-note">{stop.note}</p>
+          <p className="earth-note">{stop.note}</p><div ref={investigationHost} />
+          {stop.plume && <a href={`/investigate?${new URLSearchParams({place:stop.title || stop.label,lat:stop.lat,lon:stop.lon,scenario:1})}`}>Ingredient transport & timeline →</a>}
           {data?.stop?.id === stop.id && data.secs.length > 0 && (
             <dl className="earth-stats">
               <div><dt>Applied within {stop.radius} km</dt><dd>{fmt(data.total)} lbs</dd></div>
@@ -738,16 +818,16 @@ export default function EarthTour() {
               {data.source && <div><dt>Plume source</dt><dd>{data.source.top_chemical?.toLowerCase()}</dd></div>}
             </dl>
           )}
-          {data?.stop?.id === stop.id && data.secs.length === 0 && <p className="earth-note">No recorded agricultural use found nearby, or the backend isn't running.</p>}
+          {data?.stop?.id === stop.id && data.secs.length === 0 && <p className="earth-note">No recorded agricultural use found in the queried area and years.</p>}
 
           {stop.plume && data?.source && (
             <div className="earth-wind">
-              <div className="earth-wind-head"><p className="earth-kicker">Drift · modelled</p><span className="earth-wind-btns"><button type="button" onClick={liveWind}>Live wind</button><button type="button" className="ghost" onClick={() => { setWindSrc('Worst case: wind blowing from the field toward ' + stop.target); setWind(w => ({ ...w, dir: Math.round(data.source.bearing), speed: 2, cls: 'F' })) }}>Worst case</button></span></div>
+              <div className="earth-wind-head"><p className="earth-kicker">Drift · modelled</p><span className="earth-wind-btns"><button type="button" onClick={liveWind}>Current wind</button><button type="button" className="ghost" onClick={() => { weatherRequest.current?.abort(); setWindSrc('Scenario: wind blowing from the field toward ' + stop.target); setWind(w => ({ ...w, dir: Math.round(data.source.bearing), speed: 2, cls: 'F' })) }}>Toward this place</button></span></div>
               <p className="earth-fine">Source field {(data.source.distance / 1000).toFixed(1)} km {['N','NE','E','SE','S','SW','W','NW'][Math.round(data.source.bearing / 45) % 8]} of {stop.target}.</p>
               <div className="earth-dialrow">
-                <svg ref={dialRef} className="earth-dial" viewBox="-60 -60 120 120" role="slider" aria-label="Wind direction" aria-valuenow={wind.dir} tabIndex={0}
+                <svg ref={dialRef} className="earth-dial" viewBox="-60 -60 120 120" role="slider" aria-label="Wind direction" aria-valuemin={0} aria-valuemax={359} aria-valuenow={wind.dir} tabIndex={0}
                   onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); dragDial(e) }} onPointerMove={e => e.buttons && dragDial(e)}
-                  onKeyDown={e => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setWind(w => ({ ...w, dir: (w.dir + 5) % 360 })); if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setWind(w => ({ ...w, dir: (w.dir + 355) % 360 })) }}>
+                  onKeyDown={e => { weatherRequest.current?.abort(); setWindSrc('Scenario'); if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setWind(w => ({ ...w, dir: (w.dir + 5) % 360 })); if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setWind(w => ({ ...w, dir: (w.dir + 355) % 360 })) }}>
                   <circle r="54" className="ring" />
                   {[0, 90, 180, 270].map((a, i) => <text key={a} x={Math.sin(a * D2R) * 43} y={-Math.cos(a * D2R) * 43 + 4} textAnchor="middle">{'NESW'[i]}</text>)}
                   <g transform={`rotate(${wind.dir + 180})`}><line y1="30" y2="-34" className="shaft" /><path d="M0 -44 L9 -28 L-9 -28 Z" className="head" /></g>
@@ -756,13 +836,13 @@ export default function EarthTour() {
                 <div><p className="earth-big">{wind.dir}°</p><p className="earth-fine">Wind from {['N','NE','E','SE','S','SW','W','NW'][Math.round(wind.dir / 45) % 8]}. Drag the dial, or click a column to make it the source and click the map to drop a pin.</p></div>
               </div>
               <label htmlFor="wspd">Speed <b>{wind.speed} m/s</b></label>
-              <input id="wspd" type="range" min="0.5" max="12" step="0.5" value={wind.speed} onChange={e => { setWindSrc('Scenario'); setWind(w => ({ ...w, speed: +e.target.value })) }} />
+              <input id="wspd" type="range" min="0" max={Math.max(12, wind.speed)} step="0.1" value={wind.speed} onChange={e => { weatherRequest.current?.abort(); setWindSrc('Scenario'); setWind(w => ({ ...w, speed: +e.target.value })) }} />
               <div className="earth-cls" role="group" aria-label="Atmospheric stability">
-                {'ABCDEF'.split('').map(c => <button type="button" key={c} aria-pressed={wind.cls === c} onClick={() => setWind(w => ({ ...w, cls: c }))}>{c}</button>)}
+                {'ABCDEF'.split('').map(c => <button type="button" key={c} aria-pressed={wind.cls === c} onClick={() => { weatherRequest.current?.abort(); setWindSrc('Scenario'); setWind(w => ({ ...w, cls: c })) }}>{c}</button>)}
               </div>
               <p className="earth-read"><span>{pinLabel || stop.target}</span><b data-level={level}>{level ?? '…'}</b></p>
               {buildingCount > 0 && <p className="earth-fine">{buildingCount.toLocaleString('en-US')} buildings coloured by modelled drift. Turn the wind to see which homes sit downwind.</p>}
-              <p className="earth-fine">{windSrc}. Gaussian plume, stability {wind.cls}. Relative estimate, not measured exposure.</p>
+              <p className="earth-fine">{windSrc}. Gaussian plume, stability {wind.cls}. Relative index, not measured exposure. Historical use does not establish current spraying. Animated puffs are illustrative.</p>
             </div>
           )}
           {stop.state && <div className="earth-legend"><i /><span>Fewer lbs</span><span>More lbs</span></div>}
@@ -775,7 +855,7 @@ export default function EarthTour() {
       {!atEarth && <p className="earth-hint">Scroll or pinch to zoom · Shift-drag or right-drag to tilt</p>}
       {(stop?.plume || stop?.model) && !moving && (
         <>
-          <iframe className={'earth-model' + (view === 'model' ? ' on' : '')} title={`${stop.label} drift model`} src={stop.model ? `/${stop.model}.html` : `/diorama-template.html?lat=${stop.lat}&lon=${stop.lon}&name=${encodeURIComponent(stop.title || stop.label || '')}`} tabIndex={view === 'model' ? 0 : -1} />
+          <iframe ref={modelFrame} onLoad={()=>{if(sharedResult.current)publishSimulation(sharedResult.current)}} className={'earth-model' + (view === 'model' ? ' on' : '')} title={`${stop.label} drift model`} src={stop.model ? `/${stop.model}.html?shared=1` : `/diorama-template.html?shared=1&lat=${stop.lat}&lon=${stop.lon}&name=${encodeURIComponent(stop.title || stop.label || '')}`} tabIndex={view === 'model' ? 0 : -1} />
           <div className="earth-viewswitch" role="group" aria-label="View">
             <button type="button" aria-pressed={view === 'satellite'} onClick={() => setView('satellite')}>Satellite</button>
             <button type="button" aria-pressed={view === 'model'} onClick={() => setView('model')}>Model</button>

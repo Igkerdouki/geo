@@ -27,12 +27,15 @@ class ToolError(Exception):
     pass
 
 
+from app.llm import configured, provider, model_name
+
+
 def capabilities():
-    return dict(openai=bool(os.getenv('OPENAI_API_KEY')),
+    return dict(llm_configured=configured(), llm_provider=provider(), openai=bool(os.getenv('OPENAI_API_KEY')),
                 brightdata_search=bool(os.getenv('BRIGHTDATA_API_KEY') and os.getenv('BRIGHTDATA_SERP_ZONE')),
                 brightdata_retrieve=bool(os.getenv('BRIGHTDATA_API_KEY') and os.getenv('BRIGHTDATA_UNLOCKER_ZONE')),
                 storage='Neon / Postgres' if os.getenv('DATABASE_URL') else ('Neon connection needed' if os.getenv('VERCEL') else 'Local SQLite'),
-                model=os.getenv('OPENAI_MODEL', 'gpt-4.1-mini'))
+                model=model_name())
 
 
 def find_places(query: str):

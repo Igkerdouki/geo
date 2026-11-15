@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import maplibregl from 'maplibre-gl'
+import maplibregl from './maplibre.mjs'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import axios from 'axios'
 import {
@@ -59,6 +59,7 @@ function App() {
   const [showSpraySites, setShowSpraySites] = useState(true)
   const [atRiskLocations, setAtRiskLocations] = useState([])
   const [selectedLocation, setSelectedLocation] = useState(null)
+  useEffect(()=>{if(selectedLocation?.lat!=null)window.postMessage({type:'gaia-context',context:{location:{name:selectedLocation.name,lat:selectedLocation.lat,lon:selectedLocation.lon},scenario:null}},location.origin)},[selectedLocation])
   const [topCounties, setTopCounties] = useState([])
 
   // Real-time state

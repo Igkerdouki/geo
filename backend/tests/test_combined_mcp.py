@@ -8,7 +8,7 @@ def test_both_mcp_tool_sets_are_available():
     names = {t.name for t in asyncio.run(mcp.list_tools())}
     assert {'geocode', 'pur_records', 'chemical_profile', 'wind', 'run_plume', 'water_nearby', 'cite_sources',
             'find_place', 'discover_public_evidence', 'read_public_source', 'get_county_records',
-            'get_investigation', 'explain_finding', 'check_source_change'} == names
+            'get_investigation', 'explain_finding', 'check_source_change'} <= names
 
 
 def test_plume_bearing_and_validation():

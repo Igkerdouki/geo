@@ -104,25 +104,26 @@ h1 em{font-style:italic;color:var(--bone2)}
   </div>
 
   <div class="overlay-top">
-    <div class="live" id="hLive">Modelled scenario</div>
-    <div>Application · <b id="hTime">06:40</b> · <span id="hSky">Golden hour</span></div>
+    <div class="live" id="hLive">Modelled scenario</div><div id="weatherStatus" role="status">Loading current wind…</div>
+    <div>Illustrative time · <b id="hTime">06:40</b> · <span id="hSky">Golden hour</span></div>
     <div id="hSec">Sec 15 · T13S R18E</div>
   </div>
 
   <div class="legend">
-    <div class="items"><span><i class="sw rec"></i>Recorded: CDPR Pesticide Use Reports</span><span><i class="sw mod"></i>Modelled: Gaussian plume</span><span><i class="sw unm"></i>Not measured exposure</span></div>
+    <div class="items"><span><i class="sw rec"></i>Recorded: CDPR Pesticide Use Reports</span><span><i class="sw mod"></i>Modelled: shared backend plume</span><span><i class="sw unm"></i>Not measured exposure</span></div>
     <div class="hint">Drag the scene to orbit · wheel to zoom · arrow keys turn the wind</div>
   </div>
 
   <div class="panel">
     <div class="readout" aria-live="polite">
+
       <div class="row"><span>Wind from</span><b id="rWind">—</b></div>
       <div class="row"><span>Buildings in plume</span><b id="rHomes" class="hot">—</b></div>
-      <div class="row"><span>At the school</span><b id="rSchool">—</b></div>
+      <div class="row"><span>At selected place</span><b id="rSchool">—</b></div>
       <div class="row"><span>Air</span><b id="rAir">Stable · inversion</b></div>
       <div class="ctl"><label for="speed">Wind</label><input id="speed" type="range" min="0.5" max="9" step="0.1" value="1.6"><output id="rSpeed" for="speed">1.6 m/s</output></div>
       <div class="seg" role="group" aria-label="Time of day">
-        <button type="button" data-t="live" aria-pressed="false">Live · now</button>
+        <button type="button" data-t="live" aria-pressed="false">Current wind</button>
         <button type="button" data-t="calm" aria-pressed="true">06:40 · calm</button>
         <button type="button" data-t="windy" aria-pressed="false">14:00 · windy</button>
       </div>
@@ -150,15 +151,29 @@ h1 em{font-style:italic;color:var(--bone2)}
 </script>
 <script type="module">
 import * as THREE from 'three';
+import {currentWeather} from '/weather-client.mjs';
+import {sampleGrid, mapSimulation, mountInvestigation} from '/map-workflow.mjs';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {mergeGeometries as mergeNonempty} from 'three/addons/utils/BufferGeometryUtils.js';
+function mergeGeometries(items) {
+  if(items.length) return mergeNonempty(items);
+  const empty = new THREE.BufferGeometry();
+  for(const name of ['position','normal','color']) empty.setAttribute(name, new THREE.Float32BufferAttribute([],3));
+  return empty;
+}
 
+const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const QS = new URLSearchParams(location.search);
 const D = QS.has('lat')
-  ? await (await fetch(`/api/spatial/place?lat=${QS.get('lat')}&lon=${QS.get('lon')}&name=${encodeURIComponent(QS.get('name')||'Selected place')}`)).json()
+  ? await fetch(`/api/spatial/place?lat=${encodeURIComponent(QS.get('lat'))}&lon=${encodeURIComponent(QS.get('lon'))}&name=${encodeURIComponent(QS.get('name')||'Selected place')}`).then(async r => {
+      if (!r.ok) throw new Error('Town data unavailable. Please try again.');
+      return r.json();
+    }).catch(e => { document.querySelector('.deck').textContent=e.message; throw e; })
   : JSON.parse(document.getElementById('place').textContent);
 if (QS.has('lat')) {
-  const nm = D.pois[0]?.name || QS.get('name') || 'Selected place', lbs = D.lbs_1250||0
+  document.title = 'askgaia · ' + (QS.get('name') || 'Selected place');
+  document.getElementById('stage').setAttribute('aria-label', 'Interactive model of ' + (QS.get('name') || 'selected place'));
+  const nm = escapeHTML(D.pois[0]?.name || QS.get('name') || 'Selected place'), lbs = D.lbs_1250||0
   const k = document.querySelector('.kicker'); if (k) k.textContent = 'A real place · ' + (QS.get('name') || nm)
   const dk = document.querySelector('.deck'); if (dk) dk.innerHTML = `<strong id="nB">${Math.min(D.buildings.length,2500)}</strong> real buildings from OpenStreetMap. <strong>${lbs>=1e6?(lbs/1e6).toFixed(2)+' M':Math.round(lbs/1e3)+'k'} lbs</strong> of pesticides recorded within 1.25 km of ${nm}, 2020–2024 (CDPR)`
 }
@@ -459,8 +474,9 @@ glow.rotation.x=-Math.PI/2; glow.position.set(SCHOOL.x,.025,SCHOOL.y); scene.add
 
 /* ---------- PUR sections ---------- */
 const secs = D.sections.map(s=>{ const r=open(s.ring); const c=centroid(r); return {...s, r, cx:c[0]*S, cz:-c[1]*S}; });
-const app = secs.reduce((a,b)=> (b.fumigant_lbs > a.fumigant_lbs || (b.fumigant_lbs===a.fumigant_lbs && b.lbs > a.lbs)) ? b : a);
-const SRC = new THREE.Vector2(app.cx, app.cz);
+let hasSource = secs.some(s => s.lbs > 0);
+const app = hasSource ? secs.reduce((a,b)=> (b.fumigant_lbs > a.fumigant_lbs || (b.fumigant_lbs===a.fumigant_lbs && b.lbs > a.lbs)) ? b : a) : null;
+const SRC = new THREE.Vector2(app?.cx ?? SCHOOL.x, app?.cz ?? SCHOOL.y);
 const secNo = s => { const m = /M(\d+)([NS])(\d+)([EW])(\d+)$/.exec(s.comtrs); return m ? {sec:+m[5], tr:`T${+m[1]}${m[2]} R${+m[3]}${m[4]}`} : {sec:s.comtrs, tr:''}; };
 let srcLine;
 secs.forEach(s=>{
@@ -473,20 +489,24 @@ secs.forEach(s=>{
   scene.add(line);
   if (!isApp && s.lbs > 0) addTag('sec', `${fmtLbs(s.lbs)} lbs · ${(s.top_chemical||'').toLowerCase()}`, new THREE.Vector3(s.cx, .14, s.cz));
 });
+if (hasSource) {
 const an = secNo(app);
-addTag('tag src', `Application site · Sec ${an.sec} · ${an.tr}<i>${fmtLbs(app.lbs)} lbs · ${fmtLbs(app.fumigant_lbs)} lbs fumigants · top: ${(app.top_chemical||'').toLowerCase()} · 2020–24</i>`, new THREE.Vector3(SRC.x, .3, SRC.y));
+addTag('tag src', `Hypothetical source · Sec ${an.sec} · ${an.tr}<i>${fmtLbs(app.lbs)} lbs · ${fmtLbs(app.fumigant_lbs)} lbs fumigants · top: ${(app.top_chemical||'').toLowerCase()} · 2020–24</i>`, new THREE.Vector3(SRC.x, .3, SRC.y));
 document.getElementById('hSec').innerHTML = `Sec ${an.sec} · ${an.tr} · <b>${fmtLbs(app.lbs)} lbs</b> on file`;
+} else { document.getElementById('hSec').textContent = 'No recorded pesticide source nearby · no plume inferred'; }
 /* source marker */
 const srcPin = new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.5,8), new THREE.MeshBasicMaterial({color:0xE8823A}));
-srcPin.position.set(SRC.x,.25,SRC.y); scene.add(srcPin);
+srcPin.position.set(SRC.x,.25,SRC.y); srcPin.visible = hasSource; scene.add(srcPin);
 const srcDisc = new THREE.Mesh(new THREE.RingGeometry(.25,.3,48), new THREE.MeshBasicMaterial({color:0xE8823A, transparent:true, side:THREE.DoubleSide, depthWrite:false}));
-srcDisc.rotation.x=-Math.PI/2; srcDisc.position.set(SRC.x,.14,SRC.y); scene.add(srcDisc);
+srcDisc.rotation.x=-Math.PI/2; srcDisc.position.set(SRC.x,.14,SRC.y); srcDisc.visible = hasSource; scene.add(srcDisc);
 
 /* ---------- plume ---------- */
 const U = {uSrc:{value:SRC.clone()}, uDir:{value:new THREE.Vector2(1,0)}, uTime:{value:0}, uFront:{value:reduce?90:30},
   uSpread:{value:.085}, uDecay:{value:.05}, uAmp:{value:1.5}};
 const plumeVS = `varying vec2 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xz; gl_Position = projectionMatrix*viewMatrix*w; }`;
+U.uGrid={value:new THREE.DataTexture(new Uint8Array(4),1,1,THREE.RGBAFormat)};U.uGrid.value.needsUpdate=true;U.uExtent={value:70};
 const plumeFS = `
+uniform sampler2D uGrid; uniform float uExtent;
 uniform vec2 uSrc; uniform vec2 uDir; uniform float uTime; uniform float uFront; uniform float uLayer; uniform float uAlpha;
 uniform float uSpread; uniform float uDecay; uniform float uAmp;
 varying vec2 vW;
@@ -499,13 +519,15 @@ void main(){
   float x = dot(d,uDir), y = dot(d,nrm);
   float xp = max(x, 0.);
   float sig = .35 + uSpread*xp*(1.-.25*uLayer);
-  float body = uAmp * exp(-y*y/(2.*sig*sig)) / (1. + uDecay*xp);
+  vec2 uv=vec2(d.x,-d.y)/uExtent+.5;
+  if(any(lessThan(uv,vec2(0.))) || any(greaterThan(uv,vec2(1.))))discard;
+  float body=texture2D(uGrid,uv).r;
   float start = smoothstep(-.35, .7, x + .35*uLayer);
   float front = 1. - smoothstep(uFront-3., uFront, x);
   float tex = fbm(vW*.5 - uDir*uTime*.55 + uLayer*3.1);
   float c = body * start * front * (.62 + .7*tex);
   float sU = sig*1.95;
-  float env = uAmp * exp(-y*y/(2.*sU*sU)) / (1. + uDecay*xp) * start * front - body*start*front;
+  float env = 0.; // No uncertainty field was supplied by the backend.
   float stripe = step(.55, fract((vW.x - vW.y)*3.2));
   vec3 ember = vec3(.91,.51,.23), red = vec3(.76,.21,.17), gold = vec3(1.,.78,.45);
   vec3 colr = mix(gold, ember, smoothstep(.05,.35,c)); colr = mix(colr, red, smoothstep(.45,.95,c));
@@ -546,6 +568,8 @@ const dirVec = new THREE.Vector2();
 let camYaw = 0;
 let windDeg = Math.atan2(SCHOOL.x-SRC.x, -(SCHOOL.y-SRC.y)) * 180/Math.PI;
 let speed = 1.6, mode = 'calm';
+let sharedSimulation=null, simulationTimer, simulationRequest, ready=false, acceptingShared=false, selectedSource=null, stability='D';
+const shared = QS.get('shared')==='1' && parent!==window;
 const MODES = {
   calm:{speed:1.6, spread:.085, decay:.05, stab:1.15, air:'Stable · inversion', time:'06:40', sky:'Golden hour', sunOff:[24,6.5,9], sunCol:0xffc48a, sunI:2.4, hemiI:.9, fog:0x6e4a2b},
   windy:{speed:5.2, spread:.2, decay:.07, stab:.78, air:'Unstable · mixing', time:'14:00', sky:'Afternoon', sunOff:[-6,26,13], sunCol:0xffe7c8, sunI:2.7, hemiI:1.1, fog:0x7a5c3a},
@@ -554,45 +578,75 @@ const pts16 = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W
 const cEmber = new THREE.Color(0xE8823A), cRed = new THREE.Color(0xC2362B), tmp = new THREE.Color();
 
 function concAt(x, z, front){
-  const dx = x-SRC.x, dz = z-SRC.y;
-  const along = dx*dirVec.x + dz*dirVec.y, cross = -dx*dirVec.y + dz*dirVec.x;
-  if (along < 0) return 0;
-  const sig = .35 + U.uSpread.value*along;
-  const fr = 1 - THREE.MathUtils.smoothstep(along, front-3, front);
-  return U.uAmp.value * Math.exp(-cross*cross/(2*sig*sig)) / (1 + U.uDecay.value*along) * fr;
+  return sampleGrid(sharedSimulation,(x-SRC.x)/S,-(z-SRC.y)/S);
+}
+function applySimulation(result){
+  sharedSimulation=result; hasSource=!!result.source;
+  acceptingShared=true;
+  if(result.scenario){
+    speed=result.scenario.speed;stability=result.scenario.stability;
+    document.querySelectorAll('[data-t]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.t==='calm' && stability==='F' && speed===1.6) || (b.dataset.t==='windy' && stability==='C' && speed===5.2))));
+    setWind(result.scenario.direction+180);
+    document.getElementById('speed').value=speed;
+    document.getElementById('rAir').textContent=`Class ${stability} (assumed)`;
+  }
+  if(result.target){
+    SCHOOL.set((result.target.lon-D.center[1])*111320*Math.cos(D.center[0]*Math.PI/180)*S,-(result.target.lat-D.center[0])*111320*S);
+    ring.position.set(SCHOOL.x,.03,SCHOOL.y);ring2.position.copy(ring.position);glow.position.set(SCHOOL.x,.025,SCHOOL.y);
+  }
+  if(result.source){
+    selectedSource=result.source;
+    SRC.set((result.source.lon-D.center[1])*111320*Math.cos(D.center[0]*Math.PI/180)*S, -(result.source.lat-D.center[0])*111320*S);
+    U.uSrc.value.copy(SRC);srcPin.position.set(SRC.x,.25,SRC.y);srcDisc.position.set(SRC.x,.14,SRC.y);
+    plumes.forEach(p=>{p.position.x=SRC.x;p.position.z=SRC.y});
+    document.querySelectorAll('.tag.src').forEach(el=>el.style.display='none');
+    document.getElementById('hSec').textContent=`Hypothetical source · ${result.source.lat.toFixed(5)}, ${result.source.lon.toFixed(5)}`;
+  }
+  srcPin.visible=srcDisc.visible=hasSource;
+  if(srcLine)srcLine.visible=false;
+  const g=result.grid;
+  if(g){
+    const bytes=new Uint8Array(g.values.length*4);
+    g.values.forEach((v,i)=>{bytes[i*4]=Math.round(v*255);bytes[i*4+3]=255});
+    const texture=new THREE.DataTexture(bytes,g.size,g.size,THREE.RGBAFormat);
+    texture.minFilter=texture.magFilter=THREE.LinearFilter;texture.needsUpdate=true;
+    U.uGrid.value.dispose();U.uGrid.value=texture;U.uExtent.value=g.extent_m*S;
+  }
+  plumes.forEach(p=>p.visible=result.status==='complete');
+  document.getElementById('weatherStatus').textContent=result.status==='complete' ? `Shared backend simulation ${result.id} · modelled, not measured` : result.status==='no_source' ? 'No recorded source nearby · no plume inferred' : result.status==='calm' ? 'Calm wind · plume unavailable' : 'Backend simulation unavailable or loading';
+  if(window===window.top)window.postMessage({type:'gaia-context',context:{location:{name:QS.get('name')||D.name,lat:D.center[0],lon:D.center[1]},scenario:result.status==='complete'?result.scenario:null}},location.origin);
+  acceptingShared=false;updateTints(90,true);if(reduce)render();
+}
+function queueSimulation(){
+  if(!ready || acceptingShared)return;
+  clearTimeout(simulationTimer);simulationRequest?.abort();
+  sharedSimulation=null;plumes.forEach(p=>p.visible=false);
+  document.getElementById('weatherStatus').textContent='Updating backend simulation…';
+  simulationTimer=setTimeout(async()=>{
+    const w={speed,direction:((windDeg+180)%360+360)%360,stability};
+    if(shared){parent.postMessage({type:'askgaia-wind-change',wind:w},location.origin);return;}
+    if(!selectedSource){applySimulation({status:'no_source',grid:null,scenario:w});return;}
+    const controller=new AbortController();simulationRequest=controller;
+    try {const r=await mapSimulation({source_lat:selectedSource.lat,source_lon:selectedSource.lon,...w},controller.signal);if(!controller.signal.aborted)applySimulation(r);}
+    catch(e){if(e.name!=='AbortError')applySimulation({status:'error',grid:null});}
+  },180);
 }
 function applyScenario(){
+  queueSimulation();
   const M = MODES[mode];
   U.uSpread.value = M.spread; U.uDecay.value = M.decay;
-  U.uAmp.value = THREE.MathUtils.clamp(M.stab * 1.75 / Math.sqrt(Math.max(speed,.5)), .25, 2.2);
+  U.uAmp.value = !hasSource || speed < .5 ? 0 : THREE.MathUtils.clamp(M.stab * 1.75 / Math.sqrt(Math.max(speed,.5)), .25, 2.2);
   document.getElementById('rWind').textContent = `${pts16[Math.round(((windDeg+180)%360)/22.5)%16]} · ${speed.toFixed(1)} m/s`;
   const sp = document.getElementById('speed'); sp.style.setProperty('--p', ((speed-.5)/8.5*100)+'%');
   document.getElementById('rSpeed').textContent = speed.toFixed(1)+' m/s';
 }
-/* live: real wind right now at this town (Open-Meteo, 10 m) */
-let LIVE = null;
-async function fetchLive(){
-  const [la, lo] = D.center || [];
-  if (la == null) return null;
-  try {
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=wind_speed_10m,wind_direction_10m,is_day,cloud_cover&wind_speed_unit=ms&timezone=auto`);
-    const c = (await r.json()).current; if (!c) return null;
-    const sp = Math.max(.5, +c.wind_speed_10m), day = !!c.is_day, cloud = c.cloud_cover ?? 50;
-    // Pasquill-style stability from wind speed, daylight and cloud
-    const cls = day ? (sp < 2 ? 'A' : sp < 3 ? 'B' : sp < 5 ? 'C' : 'D') : (sp < 3 && cloud < 50 ? 'F' : sp < 3 ? 'E' : 'D');
-    const STAB = {A:[.24,.08,.7,'Very unstable · mixing'],B:[.2,.07,.78,'Unstable · mixing'],C:[.15,.065,.9,'Slightly unstable'],D:[.11,.06,1,'Neutral'],E:[.09,.055,1.1,'Stable'],F:[.075,.05,1.2,'Stable · inversion']}[cls];
-    const base = day ? MODES.windy : MODES.calm;
-    LIVE = {...base, speed:sp, spread:STAB[0], decay:STAB[1], stab:STAB[2], air:`${STAB[3]} · class ${cls}`,
-      time:c.time.slice(11,16), sky: day ? 'Live · daylight' : 'Live · night', from:+c.wind_direction_10m};
-    MODES.live = LIVE; return LIVE;
-  } catch { return null; }
-}
 function setMode(m){
-  if (m === 'live' && !MODES.live){ fetchLive().then(L => L ? setMode('live') : null); return; }
+  if (m === 'live'){ loadCurrentWind(); return; }
   document.getElementById('hLive').textContent = m === 'live' ? 'Live wind · Open-Meteo' : 'Modelled scenario';
+  stability=m==='calm'?'F':'C';
   mode = m; const M = MODES[m]; speed = M.speed; document.getElementById('speed').value = speed;
-  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.t===m));
-  document.getElementById('rAir').textContent = M.air;
+  document.querySelectorAll('.seg button[data-t]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.t===m));
+  document.getElementById('rAir').textContent = M.air + ' (assumed)';
   document.getElementById('hTime').textContent = M.time; document.getElementById('hSky').textContent = M.sky;
   sun.position.copy(target).add(new THREE.Vector3(...M.sunOff)); sun.target.position.copy(target);
   sun.color.setHex(M.sunCol); sun.intensity = M.sunI; hemi.intensity = M.hemiI; scene.fog.color.setHex(M.fog);
@@ -624,7 +678,7 @@ function updateTints(front, snap){
   });
   wallGeo.attributes.color.needsUpdate = roofGeo.attributes.color.needsUpdate = true;
   const sc = concAt(SCHOOL.x, SCHOOL.y, front);
-  const label = sc > .5 ? 'High' : sc > .2 ? 'Moderate' : sc > .06 ? 'Low' : 'Not downwind';
+  const label = !sharedSimulation || sharedSimulation.status==='loading' || sharedSimulation.status==='error' ? 'Unavailable' : !hasSource ? 'No source' : speed < .5 ? 'Unavailable' : sc < .05 ? '<0.05' : sc < .35 ? '0.05–0.35' : sc < .65 ? '0.35–0.65' : '0.65–1.00';
   const hot = sc > .2;
   ringMat.color.setHex(hot ? 0xE8823A : 0x7FE3A8); ring2.material.color.copy(ringMat.color); glow.material.color.copy(ringMat.color);
   if (count !== lastHomes){ lastHomes = count; document.getElementById('rHomes').textContent = `${count} of ${B.length}`; }
@@ -670,7 +724,7 @@ addEventListener('keydown', e=>{
   if (k){ e.preventDefault(); setWind(windDeg + (e.shiftKey ? k*3 : k)); if (reduce) render(); }
 });
 document.getElementById('speed').addEventListener('input', e=>{ speed = +e.target.value; applyScenario(); if (reduce) render(); });
-document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click', ()=>setMode(b.dataset.t)));
+document.querySelectorAll('.seg button[data-t]').forEach(b=>b.addEventListener('click', ()=>setMode(b.dataset.t)));
 
 /* ---------- labels ---------- */
 const v3 = new THREE.Vector3();
@@ -735,7 +789,7 @@ function frame(){
   sGeo.attributes.position.needsUpdate = true;
   const pulse = (Math.sin(t*1.6)+1)/2;
   ring2.scale.setScalar(1 + ((t*.35)%1)*.5); ring2.material.opacity = .55*(1-((t*.35)%1));
-  srcLine.material.opacity = .55 + .45*pulse;
+  if(srcLine) srcLine.material.opacity = .55 + .45*pulse;
   srcDisc.scale.setScalar(1 + ((t*.5)%1)*1.6); srcDisc.material.opacity = 1-((t*.5)%1);
   controls.update();
   render();
@@ -744,7 +798,41 @@ function frame(){
 
 setMode('calm');
 setWind(windDeg);
-fetchLive().then(L => { if (L) setMode('live'); });
+let weatherRequest;
+const weatherStatus = document.getElementById('weatherStatus');
+function manualWeather(){ document.getElementById('hLive').textContent='Modelled scenario'; weatherRequest?.abort(); weatherStatus.textContent = 'User scenario · not measured weather'; }
+async function loadCurrentWind(){
+  if(shared){parent.postMessage({type:'askgaia-current-wind'},location.origin);return;}
+  weatherRequest?.abort(); const request = new AbortController(); weatherRequest = request;
+  weatherStatus.textContent = 'Loading current wind…';
+  speed = 0; acceptingShared=true;applyScenario();acceptingShared=false;sharedSimulation=null;plumes.forEach(p=>p.visible=false);
+  try {
+    const w = await currentWeather(D.center[0], D.center[1], request.signal);
+    if(request.signal.aborted) return;
+    MODES.live = {...MODES.calm, speed:w.speed}; mode = 'live';
+    document.querySelectorAll('.seg button[data-t]').forEach(b => b.setAttribute('aria-pressed', b.dataset.t==='live'));
+    document.getElementById('hLive').textContent = 'Current model wind · Open-Meteo';
+    speed = w.speed; document.getElementById('speed').max = Math.max(9, speed);
+    document.getElementById('speed').min = 0; document.getElementById('speed').value = speed;
+    setWind(w.from + 180); // model direction is where the wind goes
+    weatherStatus.textContent = w.label + (w.supported ? ' · dispersion assumptions unchanged' : ' · Calm wind: plume unavailable');
+    if(reduce) render();
+  } catch(e) { if(e.name !== 'AbortError') weatherStatus.textContent = 'Current wind unavailable · select a scenario'; }
+}
+
+document.getElementById('speed').addEventListener('input', manualWeather);
+document.getElementById('compass').addEventListener('pointerdown', manualWeather);
+document.getElementById('compass').addEventListener('keydown', manualWeather);
+document.querySelectorAll('.seg button[data-t]').forEach(b => b.addEventListener('click', () => { if(b.dataset.t !== 'live') manualWeather(); }));
+ready=true;
+plumes.forEach(p=>p.visible=false);
+mountInvestigation(document.querySelector('.readout'),()=>({place:QS.get('name') || D.name,lat:sharedSimulation?.target?.lat ?? D.center[0],lon:sharedSimulation?.target?.lon ?? D.center[1],simulation:sharedSimulation}));
+if(shared){
+  window.addEventListener('message',e=>{if(e.origin===location.origin && e.source===parent && e.data?.type==='askgaia-simulation')applySimulation(e.data.result)});
+  parent.postMessage({type:'askgaia-model-ready'},location.origin);
+} else {
+  fetch(`/api/workflows/map-context?lat=${D.center[0]}&lon=${D.center[1]}`).then(r=>{if(!r.ok)throw new Error('Map records unavailable');return r.json()}).then(c=>{selectedSource=c.source;return loadCurrentWind()}).catch(e=>{document.getElementById('weatherStatus').textContent=e.message;});
+}
 resize();
 if (reduce){
   for (let i=0;i<N;i++){ const s=sState[i], o=i*6; sPos.set([s.x,s.y,s.z,s.x-dirVec.x*s.l,s.y,s.z-dirVec.y*s.l], o); }
@@ -753,4 +841,5 @@ if (reduce){
 } else requestAnimationFrame(frame);
 </script>
 
+<script type="module" src="/gaia-widget.mjs"></script>
 </body></html>

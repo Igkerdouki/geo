@@ -47,7 +47,6 @@ const COUNTIES = [
 ]
 
 export default function FarmerPortal({ isOpen, onClose, onLogout }) {
-  if (!isOpen) return null
   const [view, setView] = useState('login') // login, register, dashboard
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -723,6 +722,7 @@ export default function FarmerPortal({ isOpen, onClose, onLogout }) {
     </motion.div>
   )
 
+  if (!isOpen) return null
   return (
     <div className="farmer-portal-overlay">
       <motion.div

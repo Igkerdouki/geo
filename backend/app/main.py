@@ -7,7 +7,8 @@ import json
 import os
 import tempfile
 
-from app.api import investigations, sprays, drift, research, toxicity, locations, realtime, weather, history, farmers, spatial, place
+from app.api import spatial, spray_events, agent_workflows, investigations, sprays, drift, research, toxicity, locations, realtime, weather, history, farmers
+from app.api import chat, place
 
 # Background task for spray simulation
 spray_simulator_task = None
@@ -19,7 +20,13 @@ async def lifespan(app: FastAPI):
     spray_simulator_task = asyncio.create_task(realtime.spray_simulator()) if os.getenv("GEO_ENABLE_LEGACY_SIMULATOR") == "1" else None
     if spray_simulator_task:
         print("Started DEMO spray simulator")
+    from app.gaia_alerts import scheduler
+    alert_task = asyncio.create_task(scheduler()) if not os.getenv('VERCEL') and os.getenv('GEO_ENABLE_ALERT_WORKER','1') == '1' else None
     yield
+    if alert_task:
+        alert_task.cancel()
+        from contextlib import suppress
+        with suppress(asyncio.CancelledError): await alert_task
     # Shutdown: cancel simulator
     if spray_simulator_task:
         spray_simulator_task.cancel()
@@ -81,9 +88,17 @@ app.include_router(weather.router, prefix="/api", tags=["weather"])
 app.include_router(history.router, prefix="/api", tags=["history"])
 app.include_router(farmers.router, prefix="/api", tags=["farmers"])
 
-app.include_router(investigations.router, prefix="/api", tags=["investigations"])
+app.include_router(agent_workflows.router, prefix="/api", tags=["agent workflows"])
+app.include_router(spray_events.router, prefix="/api", tags=["application events"])
 app.include_router(spatial.router, prefix="/api", tags=["spatial"])
+from app.api import gaia, gaia_alerts
+app.include_router(gaia_alerts.router, prefix="/api", tags=["Gaia alerts"])
+app.include_router(gaia.router, prefix="/api", tags=["Gaia"])
+
+app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(place.router, prefix="/api", tags=["spatial"])
+
+app.include_router(investigations.router, prefix="/api", tags=["investigations"])
 
 @app.get("/health")
 def health():
@@ -94,6 +109,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 FRONTEND_DIST = BACKEND_ROOT.parent / "frontend" / "dist"
 if FRONTEND_DIST.is_dir():
+    @app.get("/earth", include_in_schema=False)
+    @app.get("/investigate", include_in_schema=False)
     @app.get("/explorer", include_in_schema=False)
     def explorer_page():
         return FileResponse(FRONTEND_DIST / "index.html")

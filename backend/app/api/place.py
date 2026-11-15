@@ -17,7 +17,7 @@ FUMIGANTS = (136, 385, 573, 616, 970)
 @router.get("/spatial/place")
 def place(lat: float = Query(..., ge=32, le=42.5), lon: float = Query(..., ge=-125, le=-114),
           radius_m: float = Query(1000, ge=300, le=1500), name: str = "Selected place"):
-    key = (round(lat, 4), round(lon, 4), radius_m)
+    key = (round(lat, 4), round(lon, 4), radius_m, name)
     if key in _CACHE:
         return _CACHE[key]
     z, M, C, R = 14, 111320, math.cos(math.radians(lat)), radius_m
@@ -121,9 +121,15 @@ def place(lat: float = Query(..., ge=32, le=42.5), lon: float = Query(..., ge=-1
                                     "ring": [loc(p[1], p[0]) for p in ring]})
         tot = conn.execute(
             """WITH pt AS (SELECT ST_SetSRID(ST_MakePoint(%s,%s),4326) g),
-            near AS (SELECT s.comtrs FROM plss_sections s, pt WHERE s.geom && ST_Expand(pt.g,0.04) AND ST_DWithin(s.geom::geography, pt.g::geography, 1250))
+            near AS (SELECT DISTINCT s.comtrs FROM plss_sections s, pt WHERE s.geom && ST_Expand(pt.g,0.04) AND ST_DWithin(s.geom::geography, pt.g::geography, 1250))
             SELECT coalesce(sum(lbs),0) FROM pur_monthly JOIN near USING (comtrs) WHERE year BETWEEN 2020 AND 2024""", (lon, lat)).fetchone()
         out["lbs_1250"] = round(tot[0])
+        # Water observations are optional; missing tables must not break town geometry.
+        has_surf = conn.execute("SELECT to_regclass('surf_sites'), to_regclass('surf_site_chems')").fetchone()
+        if not all(has_surf):
+            out['surf_status'] = 'Measured water data unavailable'
+            _CACHE[key] = out
+            return out
         for code, nm, la, lo, n, det, last in conn.execute(
                 """SELECT site_code,name,lat,lon,samples,detections,last FROM surf_sites
                 WHERE ST_DWithin(ST_MakePoint(lon,lat)::geography, ST_MakePoint(%s,%s)::geography, 6000) ORDER BY detections DESC LIMIT 6""",
@@ -131,5 +137,7 @@ def place(lat: float = Query(..., ge=32, le=42.5), lon: float = Query(..., ge=-1
             chems = conn.execute("SELECT chemical,n,max_ppb FROM surf_site_chems WHERE site_code=%s ORDER BY n DESC LIMIT 3", (code,)).fetchall()
             out["surf"].append({"name": nm, "pt": loc(la, lo), "samples": n, "detections": det, "last": str(last),
                                 "chems": [{"c": c2, "n": k, "max": round(m, 3)} for c2, k, m in chems]})
+    if len(_CACHE) >= 32:
+        _CACHE.pop(next(iter(_CACHE)))
     _CACHE[key] = out
     return out

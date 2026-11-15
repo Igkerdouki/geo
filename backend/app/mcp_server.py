@@ -66,5 +66,43 @@ for tool in (geocode, pur_records, chemical_profile, wind, run_plume, water_near
     mcp.tool()(tool)
 
 
+# California guardrails, learned historical priors, and spatial simulation.
+from app.coverage import resolve_california, california_location
+from app.models.seasonal import seasonal_prior
+from app.simulation import wind_conditions, simulate_grid
+for tool in (resolve_california, california_location, seasonal_prior, wind_conditions, simulate_grid):
+    mcp.tool()(tool)
+
+from app.environment import nws_observation
+from app.spray_transport import SprayScenario, simulate_spray
+mcp.tool()(nws_observation)
+
+
+@mcp.tool()
+def simulate_spray_event(scenario: dict) -> dict:
+    """Explicit spray scenario -> modeled ingredient timeline. Never infer application inputs from PUR totals."""
+    return simulate_spray(SprayScenario.model_validate(scenario))
+
+
+@mcp.tool()
+def application_events(lat: float, lon: float, radius_km: float = 1.25) -> dict:
+    """Nearby stored notices/reports. These are not independently verified live applications."""
+    import math
+    from app import workflow_store
+    california_location(lat,lon)
+    if not 0<radius_km<=25: raise ValueError('Radius must be in (0,25] km.')
+    rows=workflow_store.list_items('application_event')
+    near=[]
+    for row in rows:
+        distance=math.hypot((row['lat']-lat)*111320,(row['lon']-lon)*111320*math.cos(math.radians(lat)))
+        if distance<=radius_km*1000+row['location_uncertainty_m']:
+            near.append({**row,'approximate_distance_m':round(distance)})
+    return {'events':near,'scope':'Filtered from at most 100 most recently updated stored events; not a complete official feed. Check kind, status and source uncertainty. No nearby reports does not establish no spraying.'}
+
+
+from app.gaia_tools import nearby_schools, environmental_trends
+for tool in (nearby_schools, environmental_trends):
+    mcp.tool()(tool)
+
 if __name__ == '__main__':
     mcp.run(transport='stdio')

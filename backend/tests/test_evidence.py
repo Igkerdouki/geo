@@ -134,7 +134,7 @@ def test_analysis_runs_and_filters_model_output(monkeypatch):
         async def __aenter__(self):
             return SimpleNamespace(responses=SimpleNamespace(parse=AsyncMock(return_value=SimpleNamespace(output_parsed=parsed))))
         async def __aexit__(self,*args):pass
-    monkeypatch.setattr(agent,'AsyncOpenAI',lambda **kwargs:FakeClient())
+    monkeypatch.setattr(agent,'llm_client',lambda **kwargs:FakeClient())
     asyncio.run(agent.analyze(case))
     assert len(case['findings'])==1 and len(case['gaps'])==1
     assert case['trace'][-1]['tool']=='verify_citations'

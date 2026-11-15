@@ -88,8 +88,8 @@ def list_cases():
 @router.post('', status_code=202)
 async def create_case(body: Start):
     require_storage()
-    if not capabilities()['openai']:
-        raise HTTPException(503, 'Configure OPENAI_API_KEY in backend/.env to start an investigation.')
+    if not capabilities()['llm_configured']:
+        raise HTTPException(503, 'Configure GEMINI_API_KEY in backend/.env or the project .env to start an investigation.')
     if len(TASKS) >= 3:
         raise HTTPException(429, 'Three investigations are already running.')
     matches = find_places(body.place)

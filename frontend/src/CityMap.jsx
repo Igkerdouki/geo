@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import maplibregl from 'maplibre-gl'
+import maplibregl from './maplibre.mjs'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Search, Wind, Pause, Play, RefreshCw } from 'lucide-react'
 import './CityMap.css'
@@ -12,7 +12,7 @@ async function getJSON(url, signal) {
   return response.json()
 }
 
-export default function CityMap() {
+export default function CityMap({ focus, overlay, onLocation }) {
   const container = useRef(null), canvas = useRef(null), map = useRef(null)
   const windRef = useRef(null), pausedRef = useRef(false)
   const [city, setCity] = useState(INITIAL), [query, setQuery] = useState('')
@@ -24,6 +24,11 @@ export default function CityMap() {
   useEffect(() => { windRef.current = wind }, [wind])
   useEffect(() => { pausedRef.current = paused }, [paused])
   useEffect(() => () => searchRequest.current?.abort(), [])
+  useEffect(() => { onLocation?.({lat:city.latitude,lon:city.longitude,name:city.name}) }, [city,onLocation])
+  useEffect(() => {
+    if(focus && Number.isFinite(focus.lat) && Number.isFinite(focus.lon))
+      setCity({id:focus.id || 'investigation',name:focus.matched || focus.county || 'Scenario location',admin1:'California',country:'United States',latitude:focus.lat,longitude:focus.lon,zoom:14})
+  },[focus])
 
   useEffect(() => {
     let m, frame, observer
@@ -98,8 +103,24 @@ export default function CityMap() {
   }, [])
 
   useEffect(() => {
+    const m=map.current
+    if(!m)return
+    function draw(){
+      const data=overlay || {type:'FeatureCollection',features:[]}
+      if(m.getSource('askgaia-simulation'))m.getSource('askgaia-simulation').setData(data)
+      else {
+        m.addSource('askgaia-simulation',{type:'geojson',data})
+        m.addLayer({id:'askgaia-plume',type:'fill',source:'askgaia-simulation',filter:['==',['geometry-type'],'Polygon'],paint:{'fill-color':['case',['has','relative_index'],['interpolate',['linear'],['get','relative_index'],0,'#234c58',0.5,'#81d1a4',1,'#edc16b'],['coalesce',['get','color'],'#edc16b']],'fill-opacity':['case',['has','relative_index'],0.45,0.12]}})
+        m.addLayer({id:'askgaia-parcels',type:'circle',source:'askgaia-simulation',filter:['==',['geometry-type'],'Point'],paint:{'circle-radius':5,'circle-color':['coalesce',['get','color'],'#a6ffe0'],'circle-stroke-width':1,'circle-stroke-color':'#163b2c','circle-opacity':0.85}})
+      }
+    }
+    if(m.isStyleLoaded())draw();else m.on('load',draw)
+    return()=>m.off('load',draw)
+  },[overlay])
+
+  useEffect(() => {
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-    map.current?.flyTo({ center: [city.longitude, city.latitude], zoom: 17, pitch: 65, duration: reduced ? 0 : 1600 })
+    map.current?.flyTo({ center: [city.longitude, city.latitude], zoom: city.zoom || 17, pitch: 65, duration: reduced ? 0 : 1600 })
   }, [city])
   useEffect(() => {
     const controller = new AbortController()
@@ -120,8 +141,8 @@ export default function CityMap() {
     try {
       const data = await getJSON('https://geocoding-api.open-meteo.com/v1/search?' + new URLSearchParams({ name: query.trim(), count: 6, language: 'en', format: 'json' }), controller.signal)
       if (controller.signal.aborted) return
-      const found = (data.results || []).filter(c => Number.isFinite(c.latitude) && Number.isFinite(c.longitude))
-      setResults(found); if (!found.length) setSearchError('No matching cities. Try a nearby city or another spelling.')
+      const found = (data.results || []).filter(c => Number.isFinite(c.latitude) && Number.isFinite(c.longitude) && c.country_code==='US' && c.admin1==='California')
+      setResults(found); if (!found.length) setSearchError('No California cities found. This dataset covers California only.')
     } catch (e) { if (e.name !== 'AbortError') setSearchError(e.message) }
     finally { if (!controller.signal.aborted) setSearching(false) }
   }
@@ -142,6 +163,6 @@ export default function CityMap() {
       <p className="geo-scene-disclaimer">10 m wind from <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>. Trails animate at 12× speed using one city-level wind sample. No building-level airflow or exposure calculation.</p>
     </div></details>
     {mapError && <p className="gaia-map-error" role="alert">{mapError}</p>}
-    <details className="gaia-city-note"><summary>Map info</summary><p>Drag to pan · right-drag to orbit · scroll to zoom</p><p>Mapped building footprints; heights and coverage vary. Missing or zero heights use an 8 m fallback. Wind is a city-level model, not a street-level measurement.</p></details>
+    <details className="gaia-city-note"><summary>{overlay?'Modeled overlay · map info':'Map info'}</summary><p>Drag to pan · right-drag to orbit · scroll to zoom</p>{overlay&&<p>Points are modeled ingredient parcels. Shaded extents show input sensitivity or illustrative dispersion, not measured exposure or safety boundaries. Background wind trails show current city weather, separately from event-time simulation.</p>}<p>Mapped building footprints; heights and coverage vary. Missing or zero heights use an 8 m fallback. Wind is a city-level model, not a street-level measurement.</p></details>
   </div>
 }
